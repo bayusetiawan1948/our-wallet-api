@@ -1,0 +1,174 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { AuthenticatedUser } from '../../common/types/jwt-payload.type';
+import { Investment, InvestmentTransaction } from '../../shared/database/schema';
+import { WalletsService } from '../wallets/wallets.service';
+import { InvestmentsRepository } from './investments.repository';
+import { InvestmentsService } from './investments.service';
+
+describe('InvestmentsService', () => {
+  let service: InvestmentsService;
+  let repository: jest.Mocked<InvestmentsRepository>;
+  let walletsService: jest.Mocked<WalletsService>;
+
+  const admin: AuthenticatedUser = {
+    userId: 'user-1',
+    email: 'bayu@example.com',
+    fullName: 'Bayu',
+    householdId: 'household-1',
+    role: 'admin',
+    sessionId: 'session-1',
+    deviceId: 'device-1',
+  };
+
+  const member: AuthenticatedUser = { ...admin, userId: 'user-2', role: 'member' };
+
+  const investment: Investment = {
+    id: 'investment-1',
+    ownerUserId: 'user-1',
+    ownerHouseholdId: null,
+    assetType: 'emas',
+    assetName: 'Emas Antam',
+    unit: 'gram',
+  };
+
+  const wallet = {
+    id: 'wallet-1',
+    ownerUserId: 'user-1',
+    ownerHouseholdId: null,
+    name: 'BCA',
+    type: 'bank' as const,
+    currency: 'IDR',
+    balance: 5000000,
+  };
+
+  const buyTx: InvestmentTransaction = {
+    id: 'itx-1',
+    investmentId: investment.id,
+    walletId: wallet.id,
+    type: 'buy',
+    quantity: '10',
+    price: '1000000',
+    date: '2026-01-01',
+    status: 'active',
+    correctionOfId: null,
+  };
+
+  beforeEach(async () => {
+    const repositoryMock: Partial<jest.Mocked<InvestmentsRepository>> = {
+      CreateInvestment: jest.fn(),
+      FindById: jest.fn(),
+      FindAccessible: jest.fn(),
+      CreateTransaction: jest.fn(),
+      ListTransactionsByInvestment: jest.fn(),
+      CreateValuation: jest.fn(),
+      FindLatestValuation: jest.fn(),
+      ListValuationsByInvestment: jest.fn(),
+      HasActiveTransactions: jest.fn(),
+    };
+    const walletsServiceMock: Partial<jest.Mocked<WalletsService>> = {
+      getById: jest.fn(),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        InvestmentsService,
+        { provide: InvestmentsRepository, useValue: repositoryMock },
+        { provide: WalletsService, useValue: walletsServiceMock },
+      ],
+    }).compile();
+
+    service = module.get(InvestmentsService);
+    repository = module.get(InvestmentsRepository);
+    walletsService = module.get(WalletsService);
+  });
+
+  describe('create', () => {
+    it('throws ForbiddenException when member creates a household-owned investment', async () => {
+      await expect(
+        service.create(member, {
+          owner_type: 'household',
+          asset_type: 'emas',
+          asset_name: 'Emas Antam',
+          unit: 'gram',
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('creates a personal investment', async () => {
+      repository.CreateInvestment.mockResolvedValue(investment);
+
+      const result = await service.create(admin, {
+        owner_type: 'user',
+        asset_type: 'emas',
+        asset_name: 'Emas Antam',
+        unit: 'gram',
+      });
+
+      expect(result).toEqual(investment);
+    });
+  });
+
+  describe('addTransaction', () => {
+    it('throws ConflictException when buying exceeds wallet balance', async () => {
+      repository.FindById.mockResolvedValue(investment);
+      walletsService.getById.mockResolvedValue({ ...wallet, balance: 100 });
+
+      await expect(
+        service.addTransaction(admin, investment.id, wallet.id, 'buy', 10, 1000000, '2026-01-01'),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('throws ConflictException when selling more than held quantity', async () => {
+      repository.FindById.mockResolvedValue(investment);
+      walletsService.getById.mockResolvedValue(wallet);
+      repository.ListTransactionsByInvestment.mockResolvedValue([buyTx]);
+
+      await expect(
+        service.addTransaction(admin, investment.id, wallet.id, 'sell', 20, 1000000, '2026-01-01'),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('records a buy transaction', async () => {
+      repository.FindById.mockResolvedValue(investment);
+      walletsService.getById.mockResolvedValue(wallet);
+      repository.CreateTransaction.mockResolvedValue(buyTx);
+
+      const result = await service.addTransaction(
+        admin,
+        investment.id,
+        wallet.id,
+        'buy',
+        3,
+        1000000,
+        '2026-01-01',
+      );
+
+      expect(repository.CreateTransaction).toHaveBeenCalledWith({
+        investmentId: investment.id,
+        walletId: wallet.id,
+        type: 'buy',
+        quantity: '3',
+        price: '1000000',
+        date: '2026-01-01',
+        status: 'active',
+      });
+      expect(result).toEqual(buyTx);
+    });
+
+    it('allows selling exactly the held quantity', async () => {
+      repository.FindById.mockResolvedValue(investment);
+      walletsService.getById.mockResolvedValue(wallet);
+      repository.ListTransactionsByInvestment.mockResolvedValue([buyTx]);
+      repository.CreateTransaction.mockResolvedValue({
+        ...buyTx,
+        id: 'itx-2',
+        type: 'sell',
+      });
+
+      await service.addTransaction(admin, investment.id, wallet.id, 'sell', 10, 1000000, '2026-01-02');
+
+      expect(repository.CreateTransaction).toHaveBeenCalled();
+    });
+  });
+});

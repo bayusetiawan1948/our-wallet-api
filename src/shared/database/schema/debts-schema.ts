@@ -4,6 +4,7 @@ import {
   varchar,
   numeric,
   date,
+  text,
   check,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
@@ -39,6 +40,7 @@ export const debts = pgTable(
       .default('0'),
     dueDate: date('due_date', { mode: 'string' }),
     status: debtStatusEnum('status').notNull().default('active'),
+    note: text('note'),
   },
   (table) => [
     check(

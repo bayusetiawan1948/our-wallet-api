@@ -6,6 +6,7 @@ import {
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { households } from './households-schema';
+import { categoryTypeEnum } from './enums-schema';
 
 export const categories = pgTable('categories', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -16,6 +17,8 @@ export const categories = pgTable('categories', {
     onDelete: 'set null',
   }),
   name: varchar('name', { length: 255 }).notNull(),
+  type: categoryTypeEnum('type').notNull().default('both'),
+  icon: varchar('icon', { length: 100 }),
   isSystem: boolean('is_system').notNull().default(false),
   isHidden: boolean('is_hidden').notNull().default(false),
 });
