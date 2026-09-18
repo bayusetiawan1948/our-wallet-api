@@ -1,5 +1,5 @@
 import {
-  IsEnum,
+  IsIn,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -12,14 +12,14 @@ import type { WalletOwnerType, WalletType } from '../wallets.type.js';
 
 export class CreateWalletDto {
   @IsNotEmpty({ message: 'owner_type is required' })
-  @IsEnum(['user', 'household'], {
+  @IsIn(['user', 'household'], {
     message: 'owner_type must be either user or household',
   })
   owner_type!: WalletOwnerType;
 
-  @IsNotEmpty({ message: 'owner_id is required' })
-  @IsUUID('4', { message: 'owner_id must be a valid UUID' })
-  owner_id!: string;
+  @IsOptional()
+  @IsUUID('4', { message: 'owner_user_id must be a valid UUID' })
+  owner_user_id?: string;
 
   @IsNotEmpty({ message: 'name is required' })
   @IsString({ message: 'name must be a string' })
@@ -29,7 +29,7 @@ export class CreateWalletDto {
   name!: string;
 
   @IsNotEmpty({ message: 'type is required' })
-  @IsEnum(['bank', 'ewallet', 'cash'], {
+  @IsIn(['bank', 'ewallet', 'cash'], {
     message: 'type must be either bank, ewallet, or cash',
   })
   type!: WalletType;
