@@ -25,6 +25,7 @@ export const debtTypeEnum = pgEnum('debt_type', ['utang', 'piutang']);
 
 export const debtStatusEnum = pgEnum('debt_status', [
   'active',
+  'partial',
   'paid',
   'overdue',
   'cancelled',
@@ -35,6 +36,9 @@ export const investmentAssetTypeEnum = pgEnum('investment_asset_type', [
   'perak',
   'crypto',
   'saham',
+  'reksadana',
+  'obligasi',
+  'lainnya',
 ]);
 
 export const investmentTransactionTypeEnum = pgEnum(
@@ -73,4 +77,10 @@ export const goalStatusEnum = pgEnum('goal_status', [
   'active',
   'completed',
   'cancelled',
+]);
+
+export const categoryTypeEnum = pgEnum('category_type', [
+  'income',
+  'expense',
+  'both',
 ]);

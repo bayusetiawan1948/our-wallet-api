@@ -1,10 +1,19 @@
-import { HouseholdMemberRole } from './role.type';
+import { NullableHouseholdMemberRole } from './role.type';
 
 export interface JwtPayload {
   userId: string;
   email: string;
   fullName: string;
-  role: HouseholdMemberRole;
+  householdId: string | null;
+  role: NullableHouseholdMemberRole;
+  sessionId: string;
+  deviceId: string;
+  iat?: number;
+  exp?: number;
+}
+
+export interface RefreshTokenPayload {
+  userId: string;
   sessionId: string;
   deviceId: string;
   iat?: number;
@@ -15,7 +24,8 @@ export interface AuthenticatedUser {
   userId: string;
   email: string;
   fullName: string;
-  role: HouseholdMemberRole;
+  householdId: string | null;
+  role: NullableHouseholdMemberRole;
   sessionId: string;
   deviceId: string;
 }
