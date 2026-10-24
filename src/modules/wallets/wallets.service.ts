@@ -62,6 +62,18 @@ export class WalletsService {
       }
     }
 
+    const initialBalance = dto.initial_balance ?? 0;
+
+    if (initialBalance > 0) {
+      await this.walletsRepository.CreateInitialBalance({
+        walletId: wallet.id,
+        householdId: currentUser.householdId as string,
+        ownerId: ownerUserId ?? currentUser.userId,
+        recordedBy: currentUser.userId,
+        amount: initialBalance,
+      });
+    }
+
     await this.auditLogsService.log(
       currentUser.userId,
       'WALLETS',
@@ -69,7 +81,7 @@ export class WalletsService {
       'CREATE_WALLET',
     );
 
-    return { ...wallet, balance: 0 };
+    return { ...wallet, balance: initialBalance };
   }
 
   async listAccessible(

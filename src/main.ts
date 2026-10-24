@@ -21,10 +21,13 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
+    origin: (process.env.CORS_ORIGIN ?? 'http://localhost:5173')
+      .split(',')
+      .map((o) => o.trim()),
     credentials: true,
   });
 
-  await app.listen(process.env.PORT ?? 3000);
+  // Hanya localhost: akses dari luar lewat `tailscale serve` (HTTPS)
+  await app.listen(process.env.PORT ?? 3000, '127.0.0.1');
 }
 void bootstrap();

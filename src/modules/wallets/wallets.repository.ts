@@ -3,6 +3,7 @@ import { and, eq, or, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DATABASE } from '../../shared/database/database.provider';
 import {
+  categories,
   debtPayments,
   investmentTransactions,
   NewWallet,
@@ -78,6 +79,55 @@ export class WalletsRepository {
       .returning();
 
     return updated;
+  }
+
+  async CreateInitialBalance(data: {
+    walletId: string;
+    householdId: string;
+    ownerId: string;
+    recordedBy: string;
+    amount: number;
+  }): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select({ id: categories.id })
+        .from(categories)
+        .where(
+          and(
+            eq(categories.householdId, data.householdId),
+            eq(categories.name, 'Saldo Awal'),
+            eq(categories.isSystem, true),
+          ),
+        )
+        .limit(1);
+
+      const categoryId =
+        existing?.id ??
+        (
+          await tx
+            .insert(categories)
+            .values({
+              householdId: data.householdId,
+              name: 'Saldo Awal',
+              type: 'income',
+              isSystem: true,
+              isHidden: true,
+            })
+            .returning({ id: categories.id })
+        )[0].id;
+
+      await tx.insert(transactions).values({
+        walletId: data.walletId,
+        categoryId,
+        ownerId: data.ownerId,
+        recordedBy: data.recordedBy,
+        type: 'income',
+        amount: data.amount.toString(),
+        date: new Date().toISOString().slice(0, 10),
+        note: 'Saldo awal',
+        status: 'active',
+      });
+    });
   }
 
   async DeleteWallet(id: string): Promise<void> {
