@@ -1,4 +1,4 @@
-import { pgTable, uuid, numeric, date } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, numeric, date, timestamp } from 'drizzle-orm/pg-core';
 import { investments } from './investments-schema';
 import { investmentValuationSourceEnum } from './enums-schema';
 
@@ -13,6 +13,9 @@ export const investmentValuations = pgTable('investment_valuations', {
   }).notNull(),
   date: date('date', { mode: 'string' }).notNull(),
   source: investmentValuationSourceEnum('source').notNull().default('manual'),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 export type InvestmentValuation = typeof investmentValuations.$inferSelect;

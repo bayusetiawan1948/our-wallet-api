@@ -5,6 +5,7 @@ import { DATABASE } from '../../shared/database/database.provider';
 import {
   Budget,
   budgetPeriods,
+  categories,
   BudgetPeriod,
   budgets,
   NewBudget,
@@ -20,6 +21,18 @@ export class BudgetsRepository {
     const [created] = await this.db.insert(budgets).values(data).returning();
 
     return created;
+  }
+
+  async FindCategoryHouseholdId(
+    categoryId: string,
+  ): Promise<string | undefined> {
+    const [found] = await this.db
+      .select({ householdId: categories.householdId })
+      .from(categories)
+      .where(eq(categories.id, categoryId))
+      .limit(1);
+
+    return found?.householdId;
   }
 
   async FindById(id: string): Promise<Budget | undefined> {

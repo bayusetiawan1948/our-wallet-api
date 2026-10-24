@@ -80,6 +80,7 @@ describe('TransactionsService', () => {
     const reservationsServiceMock: Partial<jest.Mocked<ReservationsService>> = {
       computeReservedTotal: jest.fn().mockResolvedValue(0),
       applyEncroachment: jest.fn(),
+      assertEncroachmentTargets: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -189,6 +190,28 @@ describe('TransactionsService', () => {
         'wallet-1',
         [{ budget_id: 'budget-1', amount: 10000 }],
       );
+    });
+
+    it('does not save the transaction when an allocation target is invalid', async () => {
+      walletsService.getById.mockResolvedValue(wallet);
+      repository.FindCategoryHouseholdId.mockResolvedValue('household-1');
+      reservationsService.computeReservedTotal.mockResolvedValue(60000);
+      reservationsService.assertEncroachmentTargets.mockRejectedValue(
+        new BadRequestException('No reservation found'),
+      );
+
+      await expect(
+        service.create(admin, {
+          wallet_id: 'wallet-1',
+          category_id: 'category-1',
+          type: 'expense',
+          amount: 50000,
+          date: '2026-01-01',
+          encroachments: [{ budget_id: 'budget-1', amount: 10000 }],
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(repository.CreateTransaction).not.toHaveBeenCalled();
     });
 
     it('creates a transaction for the current user', async () => {

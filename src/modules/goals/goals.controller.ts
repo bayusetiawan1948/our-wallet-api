@@ -12,17 +12,13 @@ import {
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../common/types/jwt-payload.type';
 import { Reservation } from '../../shared/database/schema';
-import { ReservationsService } from '../reservations/reservations.service';
 import { CreateGoalDto } from './dto/create-goal.dto';
 import { UpdateGoalDto } from './dto/update-goal.dto';
 import { GoalProgress, GoalsService } from './goals.service';
 
 @Controller('goals')
 export class GoalsController {
-  constructor(
-    private readonly goalsService: GoalsService,
-    private readonly reservationsService: ReservationsService,
-  ) {}
+  constructor(private readonly goalsService: GoalsService) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -68,17 +64,28 @@ export class GoalsController {
 
   @Get(':id/reservations')
   @HttpCode(HttpStatus.OK)
-  async listReservations(@Param('id') id: string) {
-    const reservations = await this.reservationsService.listByGoal(id);
+  async listReservations(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    const reservations = await this.goalsService.listReservations(
+      currentUser,
+      id,
+    );
 
     return reservations.map((r) => this.toReservationResponse(r));
   }
 
   @Get(':id/encroachments')
   @HttpCode(HttpStatus.OK)
-  async listEncroachments(@Param('id') id: string) {
-    const encroachments =
-      await this.reservationsService.listEncroachmentsByGoal(id);
+  async listEncroachments(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    const encroachments = await this.goalsService.listEncroachments(
+      currentUser,
+      id,
+    );
 
     return encroachments.map((e) => ({
       id: e.id,

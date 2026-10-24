@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, gte, lte, SQL } from 'drizzle-orm';
+import { and, eq, gte, inArray, lte, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DATABASE } from '../../shared/database/database.provider';
 import {
@@ -47,9 +47,7 @@ export class TransactionsRepository {
       return [];
     }
 
-    const conditions = walletIds.map((id) => eq(transactions.walletId, id));
-    const walletCondition =
-      conditions.length === 1 ? conditions[0] : and(...conditions);
+    const walletCondition = inArray(transactions.walletId, walletIds);
 
     const clauses: SQL[] = [];
 

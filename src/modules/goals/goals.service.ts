@@ -1,6 +1,10 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { AuthenticatedUser } from '../../common/types/jwt-payload.type';
-import { Goal } from '../../shared/database/schema';
+import {
+  BudgetEncroachment,
+  Goal,
+  Reservation,
+} from '../../shared/database/schema';
 import { ReservationsService } from '../reservations/reservations.service';
 import { CreateGoalDto } from './dto/create-goal.dto';
 import { UpdateGoalDto } from './dto/update-goal.dto';
@@ -79,6 +83,24 @@ export class GoalsService {
     const goal = await this.assertAccess(currentUser, goalId);
 
     await this.goalsRepository.Delete(goal.id);
+  }
+
+  async listReservations(
+    currentUser: AuthenticatedUser,
+    goalId: string,
+  ): Promise<Reservation[]> {
+    const goal = await this.assertAccess(currentUser, goalId);
+
+    return this.reservationsService.listByGoal(goal.id);
+  }
+
+  async listEncroachments(
+    currentUser: AuthenticatedUser,
+    goalId: string,
+  ): Promise<BudgetEncroachment[]> {
+    const goal = await this.assertAccess(currentUser, goalId);
+
+    return this.reservationsService.listEncroachmentsByGoal(goal.id);
   }
 
   private async computeProgress(goal: Goal): Promise<GoalProgress> {

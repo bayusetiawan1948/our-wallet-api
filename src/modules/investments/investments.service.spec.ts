@@ -1,7 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException, ForbiddenException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { AuthenticatedUser } from '../../common/types/jwt-payload.type';
 import { Investment, InvestmentTransaction } from '../../shared/database/schema';
+import { HouseholdsService } from '../households/households.service';
 import { WalletsService } from '../wallets/wallets.service';
 import { InvestmentsRepository } from './investments.repository';
 import { InvestmentsService } from './investments.service';
@@ -65,6 +70,13 @@ describe('InvestmentsService', () => {
       FindLatestValuation: jest.fn(),
       ListValuationsByInvestment: jest.fn(),
       HasActiveTransactions: jest.fn(),
+      UpdateInvestment: jest.fn(),
+      DeleteInvestment: jest.fn(),
+      FindTransactionById: jest.fn(),
+      UpdateTransactionStatus: jest.fn(),
+    };
+    const householdsServiceMock: Partial<jest.Mocked<HouseholdsService>> = {
+      FindMembershipByUserId: jest.fn(),
     };
     const walletsServiceMock: Partial<jest.Mocked<WalletsService>> = {
       getById: jest.fn(),
@@ -75,6 +87,7 @@ describe('InvestmentsService', () => {
         InvestmentsService,
         { provide: InvestmentsRepository, useValue: repositoryMock },
         { provide: WalletsService, useValue: walletsServiceMock },
+        { provide: HouseholdsService, useValue: householdsServiceMock },
       ],
     }).compile();
 
@@ -169,6 +182,82 @@ describe('InvestmentsService', () => {
       await service.addTransaction(admin, investment.id, wallet.id, 'sell', 10, 1000000, '2026-01-02');
 
       expect(repository.CreateTransaction).toHaveBeenCalled();
+    });
+
+    it('records an opening holding without checking or touching any wallet', async () => {
+      repository.FindById.mockResolvedValue(investment);
+      repository.CreateTransaction.mockResolvedValue({
+        ...buyTx,
+        type: 'opening',
+        walletId: null,
+      });
+
+      await service.addTransaction(admin, investment.id, undefined, 'opening', 5, 900000, '2025-01-01');
+
+      expect(walletsService.getById).not.toHaveBeenCalled();
+      expect(repository.CreateTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'opening', walletId: null }),
+      );
+    });
+
+    it('throws BadRequestException when buying with a zero price', async () => {
+      repository.FindById.mockResolvedValue(investment);
+
+      await expect(
+        service.addTransaction(admin, investment.id, wallet.id, 'buy', 1, 0, '2026-01-01'),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe('remove', () => {
+    it('throws ConflictException while the asset still has active transactions', async () => {
+      repository.FindById.mockResolvedValue(investment);
+      repository.HasActiveTransactions.mockResolvedValue(true);
+
+      await expect(service.remove(admin, investment.id)).rejects.toBeInstanceOf(
+        ConflictException,
+      );
+      expect(repository.DeleteInvestment).not.toHaveBeenCalled();
+    });
+
+    it('throws ForbiddenException when a member removes someone else\'s asset', async () => {
+      repository.FindById.mockResolvedValue({
+        ...investment,
+        ownerUserId: null,
+        ownerHouseholdId: 'household-1',
+      });
+
+      await expect(service.remove(member, investment.id)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    });
+  });
+
+  describe('voidTransaction', () => {
+    it('throws ConflictException when later sales depend on the buy being voided', async () => {
+      repository.FindById.mockResolvedValue(investment);
+      repository.FindTransactionById.mockResolvedValue(buyTx);
+      repository.ListTransactionsByInvestment.mockResolvedValue([
+        buyTx,
+        { ...buyTx, id: 'itx-2', type: 'sell', quantity: '4' },
+      ]);
+
+      await expect(
+        service.voidTransaction(admin, investment.id, buyTx.id),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(repository.UpdateTransactionStatus).not.toHaveBeenCalled();
+    });
+
+    it('voids a buy that nothing depends on', async () => {
+      repository.FindById.mockResolvedValue(investment);
+      repository.FindTransactionById.mockResolvedValue(buyTx);
+      repository.ListTransactionsByInvestment.mockResolvedValue([buyTx]);
+      walletsService.getById.mockResolvedValue(wallet);
+      repository.UpdateTransactionStatus.mockResolvedValue({ ...buyTx, status: 'void' });
+
+      const result = await service.voidTransaction(admin, investment.id, buyTx.id);
+
+      expect(result.status).toBe('void');
     });
   });
 });

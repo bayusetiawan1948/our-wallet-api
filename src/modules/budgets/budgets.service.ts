@@ -1,6 +1,16 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { AuthenticatedUser } from '../../common/types/jwt-payload.type';
-import { Budget, BudgetPeriod } from '../../shared/database/schema';
+import {
+  Budget,
+  BudgetEncroachment,
+  BudgetPeriod,
+  Reservation,
+} from '../../shared/database/schema';
 import { ReservationsService } from '../reservations/reservations.service';
 import { BudgetsRepository } from './budgets.repository';
 import { CreateBudgetDto } from './dto/create-budget.dto';
@@ -46,6 +56,8 @@ export class BudgetsService {
       throw new ForbiddenException('You do not belong to a household yet');
     }
 
+    await this.assertCategoryInHousehold(currentUser, dto.category_id);
+
     const startDate = dto.start_date ?? new Date().toISOString().split('T')[0];
 
     const budget = await this.budgetsRepository.Create({
@@ -87,6 +99,10 @@ export class BudgetsService {
   ): Promise<BudgetProgress> {
     const budget = await this.assertAccess(currentUser, budgetId);
 
+    if (dto.category_id !== undefined) {
+      await this.assertCategoryInHousehold(currentUser, dto.category_id);
+    }
+
     const updated = await this.budgetsRepository.Update(budget.id, {
       ...(dto.category_id !== undefined ? { categoryId: dto.category_id } : {}),
       ...(dto.name !== undefined ? { name: dto.name } : {}),
@@ -107,6 +123,24 @@ export class BudgetsService {
     const budget = await this.assertAccess(currentUser, budgetId);
 
     await this.budgetsRepository.Delete(budget.id);
+  }
+
+  async listReservations(
+    currentUser: AuthenticatedUser,
+    budgetId: string,
+  ): Promise<Reservation[]> {
+    const budget = await this.assertAccess(currentUser, budgetId);
+
+    return this.reservationsService.listByBudget(budget.id);
+  }
+
+  async listEncroachments(
+    currentUser: AuthenticatedUser,
+    budgetId: string,
+  ): Promise<BudgetEncroachment[]> {
+    const budget = await this.assertAccess(currentUser, budgetId);
+
+    return this.reservationsService.listEncroachmentsByBudget(budget.id);
   }
 
   async closePeriod(
@@ -168,6 +202,18 @@ export class BudgetsService {
       deficit_amount: Math.max(0, spentAmount - effectiveTarget),
       is_overbudget: spentAmount > effectiveTarget,
     };
+  }
+
+  private async assertCategoryInHousehold(
+    currentUser: AuthenticatedUser,
+    categoryId: string,
+  ): Promise<void> {
+    const householdId =
+      await this.budgetsRepository.FindCategoryHouseholdId(categoryId);
+
+    if (!householdId || householdId !== currentUser.householdId) {
+      throw new BadRequestException('Category not found in your household');
+    }
   }
 
   private async assertAccess(

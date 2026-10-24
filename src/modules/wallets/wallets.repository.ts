@@ -5,6 +5,7 @@ import { DATABASE } from '../../shared/database/database.provider';
 import {
   categories,
   debtPayments,
+  debts,
   investmentTransactions,
   NewWallet,
   NewWalletAccess,
@@ -169,12 +170,55 @@ export class WalletsRepository {
         ),
       );
 
+    // Piutang yang dibayar masuk ke wallet, utang yang dibayar keluar dari wallet.
+    const [debtFlows] = await this.db
+      .select({
+        inflow: sql<string>`COALESCE(SUM(CASE WHEN ${debts.type} = 'piutang' THEN ${debtPayments.amount} ELSE 0 END), 0)`,
+        outflow: sql<string>`COALESCE(SUM(CASE WHEN ${debts.type} = 'utang' THEN ${debtPayments.amount} ELSE 0 END), 0)`,
+      })
+      .from(debtPayments)
+      .innerJoin(debts, eq(debtPayments.debtId, debts.id))
+      .where(
+        and(
+          eq(debtPayments.walletId, walletId),
+          eq(debtPayments.status, 'active'),
+        ),
+      );
+
+    // Jual menambah wallet, beli mengurangi wallet. Kepemilikan awal (opening)
+    // tidak terhubung ke wallet sehingga tidak pernah ikut dihitung.
+    const [investmentFlows] = await this.db
+      .select({
+        inflow: sql<string>`COALESCE(SUM(CASE WHEN ${investmentTransactions.type} = 'sell' THEN ${investmentTransactions.quantity} * ${investmentTransactions.price} ELSE 0 END), 0)`,
+        outflow: sql<string>`COALESCE(SUM(CASE WHEN ${investmentTransactions.type} = 'buy' THEN ${investmentTransactions.quantity} * ${investmentTransactions.price} ELSE 0 END), 0)`,
+      })
+      .from(investmentTransactions)
+      .where(
+        and(
+          eq(investmentTransactions.walletId, walletId),
+          eq(investmentTransactions.status, 'active'),
+        ),
+      );
+
     const income = Number(txSums?.income ?? 0);
     const expense = Number(txSums?.expense ?? 0);
     const inbound = Number(transferIn?.total ?? 0);
     const outbound = Number(transferOut?.total ?? 0);
+    const debtIn = Number(debtFlows?.inflow ?? 0);
+    const debtOut = Number(debtFlows?.outflow ?? 0);
+    const investmentIn = Number(investmentFlows?.inflow ?? 0);
+    const investmentOut = Number(investmentFlows?.outflow ?? 0);
 
-    return income - expense + inbound - outbound;
+    return (
+      income -
+      expense +
+      inbound -
+      outbound +
+      debtIn -
+      debtOut +
+      investmentIn -
+      investmentOut
+    );
   }
 
   async HasAnyMoneyMovement(walletId: string): Promise<boolean> {

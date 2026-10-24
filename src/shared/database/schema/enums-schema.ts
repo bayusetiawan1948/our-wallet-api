@@ -43,7 +43,7 @@ export const investmentAssetTypeEnum = pgEnum('investment_asset_type', [
 
 export const investmentTransactionTypeEnum = pgEnum(
   'investment_transaction_type',
-  ['buy', 'sell'],
+  ['buy', 'sell', 'opening'],
 );
 
 export const investmentTransactionStatusEnum = pgEnum(

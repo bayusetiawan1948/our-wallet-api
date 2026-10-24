@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { AuthenticatedUser } from '../../common/types/jwt-payload.type';
 import { Budget, BudgetPeriod } from '../../shared/database/schema';
 import { ReservationsService } from '../reservations/reservations.service';
@@ -48,6 +48,7 @@ describe('BudgetsService', () => {
     const repositoryMock: Partial<jest.Mocked<BudgetsRepository>> = {
       Create: jest.fn(),
       FindById: jest.fn(),
+      FindCategoryHouseholdId: jest.fn().mockResolvedValue('household-1'),
       FindAccessible: jest.fn(),
       Update: jest.fn(),
       Delete: jest.fn(),
@@ -107,6 +108,24 @@ describe('BudgetsService', () => {
           status: 'active',
         }),
       );
+    });
+  });
+
+  describe('create category check', () => {
+    it('rejects a category that belongs to another household', async () => {
+      repository.FindCategoryHouseholdId.mockResolvedValue('household-2');
+
+      await expect(
+        service.create(admin, {
+          owner_type: 'household',
+          category_id: 'category-x',
+          name: 'X',
+          target_amount: 1000,
+          period: 'monthly',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(repository.Create).not.toHaveBeenCalled();
     });
   });
 

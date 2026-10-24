@@ -12,17 +12,13 @@ import {
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../common/types/jwt-payload.type';
 import { Reservation } from '../../shared/database/schema';
-import { ReservationsService } from '../reservations/reservations.service';
 import { BudgetProgress, BudgetsService } from './budgets.service';
 import { CreateBudgetDto } from './dto/create-budget.dto';
 import { UpdateBudgetDto } from './dto/update-budget.dto';
 
 @Controller('budgets')
 export class BudgetsController {
-  constructor(
-    private readonly budgetsService: BudgetsService,
-    private readonly reservationsService: ReservationsService,
-  ) {}
+  constructor(private readonly budgetsService: BudgetsService) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -68,17 +64,28 @@ export class BudgetsController {
 
   @Get(':id/reservations')
   @HttpCode(HttpStatus.OK)
-  async listReservations(@Param('id') id: string) {
-    const reservations = await this.reservationsService.listByBudget(id);
+  async listReservations(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    const reservations = await this.budgetsService.listReservations(
+      currentUser,
+      id,
+    );
 
     return reservations.map((r) => this.toReservationResponse(r));
   }
 
   @Get(':id/encroachments')
   @HttpCode(HttpStatus.OK)
-  async listEncroachments(@Param('id') id: string) {
-    const encroachments =
-      await this.reservationsService.listEncroachmentsByBudget(id);
+  async listEncroachments(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    const encroachments = await this.budgetsService.listEncroachments(
+      currentUser,
+      id,
+    );
 
     return encroachments.map((e) => ({
       id: e.id,

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -8,7 +9,10 @@ import { BudgetEncroachment, Reservation } from '../../shared/database/schema';
 import { WalletsService } from '../wallets/wallets.service';
 import { BudgetEncroachmentsRepository } from './budget-encroachments.repository';
 import { CreateReservationDto } from './dto/create-reservation.dto';
-import { ReservationsRepository } from './reservations.repository';
+import {
+  ReservationsRepository,
+  ReservationTargetOwner,
+} from './reservations.repository';
 
 export interface EncroachmentAllocation {
   budget_id?: string;
@@ -29,6 +33,22 @@ export class ReservationsService {
     dto: CreateReservationDto,
   ): Promise<Reservation> {
     await this.walletsService.getById(currentUser, dto.wallet_id);
+
+    if (dto.budget_id) {
+      const owner = await this.reservationsRepository.FindBudgetOwner(
+        dto.budget_id,
+      );
+
+      this.assertCanTarget(currentUser, owner, 'Budget');
+    }
+
+    if (dto.goal_id) {
+      const owner = await this.reservationsRepository.FindGoalOwner(
+        dto.goal_id,
+      );
+
+      this.assertCanTarget(currentUser, owner, 'Goal');
+    }
 
     return this.reservationsRepository.Create({
       walletId: dto.wallet_id,
@@ -109,6 +129,22 @@ export class ReservationsService {
     return totals;
   }
 
+  async assertEncroachmentTargets(
+    walletId: string,
+    allocations: EncroachmentAllocation[],
+  ): Promise<void> {
+    const walletReservations =
+      await this.reservationsRepository.ListByWallet(walletId);
+
+    for (const allocation of allocations) {
+      if (allocation.amount <= 0) {
+        continue;
+      }
+
+      this.findReservationForAllocation(walletReservations, allocation);
+    }
+  }
+
   async applyEncroachment(
     transactionId: string,
     walletId: string,
@@ -123,17 +159,10 @@ export class ReservationsService {
         continue;
       }
 
-      const reservation = walletReservations.find(
-        (r) =>
-          (allocation.budget_id && r.budgetId === allocation.budget_id) ||
-          (allocation.goal_id && r.goalId === allocation.goal_id),
+      const reservation = this.findReservationForAllocation(
+        walletReservations,
+        allocation,
       );
-
-      if (!reservation) {
-        throw new BadRequestException(
-          `No reservation found in this wallet for ${allocation.budget_id ? `budget ${allocation.budget_id}` : `goal ${allocation.goal_id}`}`,
-        );
-      }
 
       await this.reservationsRepository.UpdateReservedAmount(
         reservation.id,
@@ -152,5 +181,45 @@ export class ReservationsService {
     }
 
     return created;
+  }
+
+  private findReservationForAllocation(
+    walletReservations: Reservation[],
+    allocation: EncroachmentAllocation,
+  ): Reservation {
+    const reservation = walletReservations.find(
+      (r) =>
+        (allocation.budget_id && r.budgetId === allocation.budget_id) ||
+        (allocation.goal_id && r.goalId === allocation.goal_id),
+    );
+
+    if (!reservation) {
+      throw new BadRequestException(
+        `No reservation found in this wallet for ${allocation.budget_id ? `budget ${allocation.budget_id}` : `goal ${allocation.goal_id}`}`,
+      );
+    }
+
+    return reservation;
+  }
+
+  private assertCanTarget(
+    currentUser: AuthenticatedUser,
+    owner: ReservationTargetOwner | undefined,
+    label: 'Budget' | 'Goal',
+  ): void {
+    if (!owner) {
+      throw new NotFoundException(`${label} not found`);
+    }
+
+    const isOwner = owner.ownerUserId === currentUser.userId;
+    const isHousehold =
+      owner.ownerHouseholdId !== null &&
+      owner.ownerHouseholdId === currentUser.householdId;
+
+    if (!isOwner && !isHousehold) {
+      throw new ForbiddenException(
+        `You do not have access to this ${label.toLowerCase()}`,
+      );
+    }
   }
 }

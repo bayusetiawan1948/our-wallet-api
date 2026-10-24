@@ -64,6 +64,52 @@ export class InvestmentsRepository {
     return created;
   }
 
+  async UpdateInvestment(
+    id: string,
+    data: Partial<NewInvestment>,
+  ): Promise<Investment | undefined> {
+    if (Object.keys(data).length === 0) {
+      return this.FindById(id);
+    }
+
+    const [updated] = await this.db
+      .update(investments)
+      .set(data)
+      .where(eq(investments.id, id))
+      .returning();
+
+    return updated;
+  }
+
+  async DeleteInvestment(id: string): Promise<void> {
+    await this.db.delete(investments).where(eq(investments.id, id));
+  }
+
+  async FindTransactionById(
+    id: string,
+  ): Promise<InvestmentTransaction | undefined> {
+    const [found] = await this.db
+      .select()
+      .from(investmentTransactions)
+      .where(eq(investmentTransactions.id, id))
+      .limit(1);
+
+    return found;
+  }
+
+  async UpdateTransactionStatus(
+    id: string,
+    status: 'active' | 'void',
+  ): Promise<InvestmentTransaction | undefined> {
+    const [updated] = await this.db
+      .update(investmentTransactions)
+      .set({ status })
+      .where(eq(investmentTransactions.id, id))
+      .returning();
+
+    return updated;
+  }
+
   async ListTransactionsByInvestment(
     investmentId: string,
   ): Promise<InvestmentTransaction[]> {
@@ -91,7 +137,10 @@ export class InvestmentsRepository {
       .select()
       .from(investmentValuations)
       .where(eq(investmentValuations.investmentId, investmentId))
-      .orderBy(desc(investmentValuations.date))
+      .orderBy(
+        desc(investmentValuations.date),
+        desc(investmentValuations.createdAt),
+      )
       .limit(1);
 
     return found;
@@ -103,7 +152,11 @@ export class InvestmentsRepository {
     return this.db
       .select()
       .from(investmentValuations)
-      .where(eq(investmentValuations.investmentId, investmentId));
+      .where(eq(investmentValuations.investmentId, investmentId))
+      .orderBy(
+        desc(investmentValuations.date),
+        desc(investmentValuations.createdAt),
+      );
   }
 
   async HasActiveTransactions(investmentId: string): Promise<boolean> {

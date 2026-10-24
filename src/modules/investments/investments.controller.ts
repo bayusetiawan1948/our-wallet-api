@@ -1,10 +1,12 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Post,
 } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -17,6 +19,7 @@ import {
 import { CreateInvestmentTransactionDto } from './dto/create-investment-transaction.dto';
 import { CreateInvestmentValuationDto } from './dto/create-investment-valuation.dto';
 import { CreateInvestmentDto } from './dto/create-investment.dto';
+import { UpdateInvestmentDto } from './dto/update-investment.dto';
 import {
   InvestmentsService,
   InvestmentWithValuation,
@@ -47,6 +50,49 @@ export class InvestmentsController {
     const investments = await this.investmentsService.list(currentUser);
 
     return investments.map((investment) => this.toResponse(investment));
+  }
+
+  @Patch(':id')
+  @HttpCode(HttpStatus.OK)
+  async update(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateInvestmentDto,
+  ) {
+    const investment = await this.investmentsService.update(
+      currentUser,
+      id,
+      dto,
+    );
+
+    return this.toResponse(investment);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.OK)
+  async remove(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    await this.investmentsService.remove(currentUser, id);
+
+    return { id };
+  }
+
+  @Post(':id/transactions/:transactionId/void')
+  @HttpCode(HttpStatus.OK)
+  async voidTransaction(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+    @Param('transactionId') transactionId: string,
+  ) {
+    const transaction = await this.investmentsService.voidTransaction(
+      currentUser,
+      id,
+      transactionId,
+    );
+
+    return this.toTransactionResponse(transaction);
   }
 
   @Post(':id/transactions')

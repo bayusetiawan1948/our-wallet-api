@@ -76,6 +76,11 @@ export class TransactionsService {
             `Total encroachment allocation (${totalAllocated}) must exactly match the free balance shortfall (${shortfall})`,
           );
         }
+
+        await this.reservationsService.assertEncroachmentTargets(
+          dto.wallet_id,
+          dto.encroachments,
+        );
       }
     }
 

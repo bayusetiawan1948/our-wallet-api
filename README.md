@@ -453,6 +453,46 @@ describe('WalletsService', () => {
 3. **Repository**: Integration Test (Test DB / Container) jika ada query kompleks.
 4. **Controller**: E2E / Integration Test (HTTP pipeline & DTO validation).
 
+### Feature Test (HTTP + database nyata)
+
+Feature test menjalankan seluruh aplikasi NestJS (guard, `ValidationPipe`, interceptor, filter) lewat HTTP dengan Supertest terhadap **PostgreSQL khusus test**. Setup aplikasinya memakai `configureApp()` (`src/app.config.ts`) yang sama dengan `main.ts`.
+
+**Persiapan (sekali saja)**
+
+1. Buat database kosong, misalnya `our-wallet-test`.
+2. Salin `.env.test.example` menjadi `.env.test`, lalu isi `DATABASE_URL`.
+3. Nama database **wajib mengandung `test`**. Jika tidak, test langsung ditolak sebelum menyentuh data apa pun, karena tiap file test mengosongkan seluruh tabel.
+
+**Menjalankan**
+
+```bash
+npm run test:feature                          # semua feature test
+npx jest --config ./test/feature/jest-feature.json --runInBand wallets   # satu modul
+npm run test:feature:cov                      # dengan coverage (output: coverage-feature/)
+```
+
+Migrasi Drizzle dijalankan otomatis ke database test sebelum test dimulai (`test/feature/global-setup.ts`).
+
+**Struktur & konvensi**
+
+```
+test/feature/
+├── jest-feature.json          # config jest (terpisah dari unit test dan e2e boot)
+├── global-setup.ts            # cek nama DB + migrasi
+├── support/
+│   ├── env.ts                 # muat .env.test + pengaman nama DB
+│   ├── db.ts                  # truncate semua tabel, execSql
+│   ├── test-app.ts            # createTestApp / closeTestApp
+│   ├── actors.ts              # createAdmin, createMember, authed()
+│   └── builders.ts            # createWallet, createCategory, createTransaction
+└── modules/*.feature-spec.ts  # satu file per modul
+```
+
+- Satu file `*.feature-spec.ts` per modul; `createTestApp()` mengosongkan database di `beforeAll`.
+- User dibuat lewat endpoint asli (`/auth/register`, `/households`, invite), bukan insert langsung ke database. Token baru diambil lewat login ulang karena JWT memuat household dan role.
+- Setiap endpoint minimal diuji untuk: happy path, validasi DTO (400), tanpa token (401), role Member pada endpoint Admin (403), dan isolasi antar household.
+- Bug yang ditemukan tetapi belum diperbaiki ditandai `it.failing` dengan komentar penjelas, sehingga suite tetap hijau dan test otomatis gagal begitu bug diperbaiki (pengingat untuk melepas penandanya).
+
 ---
 
 # 7. Rule Addition Policy

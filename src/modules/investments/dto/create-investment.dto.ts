@@ -37,4 +37,19 @@ export class CreateInvestmentDto {
   @IsNumber({}, { message: 'initial_price must be a number' })
   @Min(0, { message: 'initial_price cannot be negative' })
   initial_price?: number;
+
+  // Aset yang sudah dimiliki sebelum dicatat: tidak menyentuh saldo wallet.
+  @IsOptional()
+  @IsNumber({}, { message: 'opening_quantity must be a number' })
+  @Min(0, { message: 'opening_quantity cannot be negative' })
+  opening_quantity?: number;
+
+  @IsOptional()
+  @IsNumber({}, { message: 'opening_price must be a number' })
+  @Min(0, { message: 'opening_price cannot be negative' })
+  opening_price?: number;
+
+  @IsOptional()
+  @IsString({ message: 'opening_date must be a string (YYYY-MM-DD)' })
+  opening_date?: string;
 }

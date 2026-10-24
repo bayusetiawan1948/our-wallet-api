@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { AuthenticatedUser } from '../../common/types/jwt-payload.type';
 import { Reservation } from '../../shared/database/schema';
 import { WalletsService } from '../wallets/wallets.service';
@@ -37,6 +41,14 @@ describe('ReservationsService', () => {
     const repositoryMock: Partial<jest.Mocked<ReservationsRepository>> = {
       Create: jest.fn(),
       FindById: jest.fn(),
+      FindBudgetOwner: jest.fn().mockResolvedValue({
+        ownerUserId: null,
+        ownerHouseholdId: 'household-1',
+      }),
+      FindGoalOwner: jest.fn().mockResolvedValue({
+        ownerUserId: null,
+        ownerHouseholdId: 'household-1',
+      }),
       ListByWallet: jest.fn(),
       ListByBudget: jest.fn(),
       ListByGoal: jest.fn(),
@@ -93,6 +105,49 @@ describe('ReservationsService', () => {
 
       expect(walletsService.getById).toHaveBeenCalledWith(admin, 'wallet-1');
       expect(result).toEqual(reservation);
+    });
+  });
+
+  describe('create target ownership', () => {
+    const wallet = {
+      id: 'wallet-1',
+      ownerUserId: 'user-1',
+      ownerHouseholdId: null,
+      name: 'BCA',
+      type: 'bank' as const,
+      currency: 'IDR',
+      balance: 500000,
+    };
+
+    it('rejects a goal owned by another household', async () => {
+      walletsService.getById.mockResolvedValue(wallet);
+      repository.FindGoalOwner.mockResolvedValue({
+        ownerUserId: null,
+        ownerHouseholdId: 'household-2',
+      });
+
+      await expect(
+        service.create(admin, {
+          wallet_id: 'wallet-1',
+          goal_id: 'goal-x',
+          reserved_amount: 1000,
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(repository.Create).not.toHaveBeenCalled();
+    });
+
+    it('rejects an unknown budget', async () => {
+      walletsService.getById.mockResolvedValue(wallet);
+      repository.FindBudgetOwner.mockResolvedValue(undefined);
+
+      await expect(
+        service.create(admin, {
+          wallet_id: 'wallet-1',
+          budget_id: 'missing',
+          reserved_amount: 1000,
+        }),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 

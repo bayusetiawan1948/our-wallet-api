@@ -22,7 +22,9 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "test:feature": "jest --config ./test/feature/jest-feature.json --runInBand",
+    "test:feature:cov": "jest --config ./test/feature/jest-feature.json --runInBand --coverage"
   },
   "dependencies": {
     "@dinero.js/currencies": "^2.0.0-alpha.1",

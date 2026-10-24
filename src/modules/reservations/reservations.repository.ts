@@ -3,10 +3,17 @@ import { eq, or } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DATABASE } from '../../shared/database/database.provider';
 import {
+  budgets,
+  goals,
   NewReservation,
   Reservation,
   reservations,
 } from '../../shared/database/schema';
+
+export interface ReservationTargetOwner {
+  ownerUserId: string | null;
+  ownerHouseholdId: string | null;
+}
 
 @Injectable()
 export class ReservationsRepository {
@@ -19,6 +26,36 @@ export class ReservationsRepository {
       .returning();
 
     return created;
+  }
+
+  async FindBudgetOwner(
+    budgetId: string,
+  ): Promise<ReservationTargetOwner | undefined> {
+    const [found] = await this.db
+      .select({
+        ownerUserId: budgets.ownerUserId,
+        ownerHouseholdId: budgets.ownerHouseholdId,
+      })
+      .from(budgets)
+      .where(eq(budgets.id, budgetId))
+      .limit(1);
+
+    return found;
+  }
+
+  async FindGoalOwner(
+    goalId: string,
+  ): Promise<ReservationTargetOwner | undefined> {
+    const [found] = await this.db
+      .select({
+        ownerUserId: goals.ownerUserId,
+        ownerHouseholdId: goals.ownerHouseholdId,
+      })
+      .from(goals)
+      .where(eq(goals.id, goalId))
+      .limit(1);
+
+    return found;
   }
 
   async FindById(id: string): Promise<Reservation | undefined> {

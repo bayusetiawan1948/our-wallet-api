@@ -29,6 +29,7 @@ desktop.ini
 
 # Tests & Coverage
 /coverage
+/coverage-feature
 /.nyc_output
 *.lcov
 

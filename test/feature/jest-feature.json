@@ -1,0 +1,21 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "../..",
+  "roots": ["<rootDir>/test/feature"],
+  "testEnvironment": "node",
+  "testRegex": ".feature-spec.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "transformIgnorePatterns": ["node_modules/(?!(@nestjs/jwt)/)"],
+  "moduleNameMapper": {
+    "^(\\.{1,2}/.*)\\.js$": "$1"
+  },
+  "globalSetup": "<rootDir>/test/feature/global-setup.ts",
+  "setupFiles": ["<rootDir>/test/feature/support/env.ts"],
+  "testTimeout": 30000,
+  "maxWorkers": 1,
+  "forceExit": true,
+  "collectCoverageFrom": ["src/**/*.ts", "!src/main.ts", "!src/**/*.spec.ts"],
+  "coverageDirectory": "coverage-feature"
+}

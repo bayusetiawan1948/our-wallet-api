@@ -13,6 +13,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../common/types/jwt-payload.type';
 import { Reservation } from '../../shared/database/schema';
 import { CreateReservationDto } from './dto/create-reservation.dto';
+import { ListReservationsDto } from './dto/list-reservations.dto';
 import { ReservationsService } from './reservations.service';
 
 @Controller('reservations')
@@ -37,11 +38,11 @@ export class ReservationsController {
   @HttpCode(HttpStatus.OK)
   async list(
     @CurrentUser() currentUser: AuthenticatedUser,
-    @Query('wallet_id') walletId: string,
+    @Query() query: ListReservationsDto,
   ) {
     const reservations = await this.reservationsService.listByWallet(
       currentUser,
-      walletId,
+      query.wallet_id,
     );
 
     return reservations.map((r) => this.toResponse(r));

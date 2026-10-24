@@ -238,9 +238,12 @@ export class AuthService {
       expiresIn: accessExpiresIn as JwtSignOptions['expiresIn'],
     });
 
+    // jwtid unik supaya token hasil rotasi tidak pernah identik dengan token lama
+    // (iat berdetik), sehingga reuse refresh token selalu terdeteksi.
     const refreshToken = await this.jwtService.signAsync(refreshPayload, {
       secret: this.getRefreshSecret(),
       expiresIn: refreshExpiresIn as JwtSignOptions['expiresIn'],
+      jwtid: randomUUID(),
     });
 
     await this.authRepository.UpdateRefreshToken(
