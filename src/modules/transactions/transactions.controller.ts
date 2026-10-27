@@ -105,6 +105,7 @@ export class TransactionsController {
       source: transaction.source,
       debt_id: transaction.debtId,
       debt_payment_id: transaction.debtPaymentId,
+      investment_transaction_id: transaction.investmentTransactionId,
     };
   }
 }

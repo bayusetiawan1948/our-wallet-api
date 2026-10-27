@@ -62,6 +62,7 @@ describe('TransactionsService', () => {
     source: null,
     debtId: null,
     debtPaymentId: null,
+    investmentTransactionId: null,
     correctionOfId: null,
   };
 

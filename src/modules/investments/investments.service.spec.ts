@@ -8,6 +8,7 @@ import { AuthenticatedUser } from '../../common/types/jwt-payload.type';
 import {
   Investment,
   InvestmentTransaction,
+  NewTransaction,
 } from '../../shared/database/schema';
 import { HouseholdsService } from '../households/households.service';
 import { WalletsService } from '../wallets/wallets.service';
@@ -72,6 +73,8 @@ describe('InvestmentsService', () => {
       FindById: jest.fn(),
       FindAccessible: jest.fn(),
       CreateTransaction: jest.fn(),
+      CreateTransactionWithEntry: jest.fn(),
+      VoidTransactionWithEntry: jest.fn(),
       ListTransactionsByInvestment: jest.fn(),
       CreateValuation: jest.fn(),
       FindLatestValuation: jest.fn(),
@@ -168,7 +171,17 @@ describe('InvestmentsService', () => {
     it('records a buy transaction', async () => {
       repository.FindById.mockResolvedValue(investment);
       walletsService.getById.mockResolvedValue(wallet);
-      repository.CreateTransaction.mockResolvedValue(buyTx);
+      const entries: NewTransaction[][] = [];
+
+      repository.CreateTransactionWithEntry.mockImplementation(
+        (_household, _data, build) => {
+          const created = { ...buyTx, quantity: '3' };
+
+          entries.push(build(created, 'category-1'));
+
+          return Promise.resolve(created);
+        },
+      );
 
       const result = await service.addTransaction(
         admin,
@@ -180,27 +193,47 @@ describe('InvestmentsService', () => {
         '2026-01-01',
       );
 
-      expect(repository.CreateTransaction).toHaveBeenCalledWith({
-        investmentId: investment.id,
-        walletId: wallet.id,
-        type: 'buy',
-        quantity: '3',
-        price: '1000000',
-        date: '2026-01-01',
-        status: 'active',
-      });
-      expect(result).toEqual(buyTx);
+      expect(repository.CreateTransactionWithEntry).toHaveBeenCalledWith(
+        'household-1',
+        {
+          investmentId: investment.id,
+          walletId: wallet.id,
+          type: 'buy',
+          quantity: '3',
+          price: '1000000',
+          date: '2026-01-01',
+          status: 'active',
+        },
+        expect.any(Function),
+      );
+      expect(entries[0]).toEqual([
+        expect.objectContaining({
+          walletId: wallet.id,
+          categoryId: 'category-1',
+          type: 'expense',
+          amount: '3000000',
+          note: 'Pembelian investasi · Emas Antam',
+          source: 'investment_buy',
+          investmentTransactionId: buyTx.id,
+        }),
+      ]);
+      expect(result).toEqual({ ...buyTx, quantity: '3' });
     });
 
     it('allows selling exactly the held quantity', async () => {
       repository.FindById.mockResolvedValue(investment);
       walletsService.getById.mockResolvedValue(wallet);
       repository.ListTransactionsByInvestment.mockResolvedValue([buyTx]);
-      repository.CreateTransaction.mockResolvedValue({
-        ...buyTx,
-        id: 'itx-2',
-        type: 'sell',
-      });
+      const entries: NewTransaction[][] = [];
+      const sellTx = { ...buyTx, id: 'itx-2', type: 'sell' as const };
+
+      repository.CreateTransactionWithEntry.mockImplementation(
+        (_household, _data, build) => {
+          entries.push(build(sellTx, 'category-1'));
+
+          return Promise.resolve(sellTx);
+        },
+      );
 
       await service.addTransaction(
         admin,
@@ -212,7 +245,15 @@ describe('InvestmentsService', () => {
         '2026-01-02',
       );
 
-      expect(repository.CreateTransaction).toHaveBeenCalled();
+      expect(repository.CreateTransactionWithEntry).toHaveBeenCalled();
+      expect(entries[0]).toEqual([
+        expect.objectContaining({
+          type: 'income',
+          amount: '10000000',
+          note: 'Penjualan investasi · Emas Antam',
+          source: 'investment_sell',
+        }),
+      ]);
     });
 
     it('records an opening holding without checking or touching any wallet', async () => {
@@ -300,10 +341,16 @@ describe('InvestmentsService', () => {
       repository.FindTransactionById.mockResolvedValue(buyTx);
       repository.ListTransactionsByInvestment.mockResolvedValue([buyTx]);
       walletsService.getById.mockResolvedValue(wallet);
-      repository.UpdateTransactionStatus.mockResolvedValue({
-        ...buyTx,
-        status: 'void',
-      });
+      const entries: NewTransaction[][] = [];
+      const voidedTx = { ...buyTx, status: 'void' as const };
+
+      repository.VoidTransactionWithEntry.mockImplementation(
+        (_household, _id, build) => {
+          entries.push(build(voidedTx, 'category-1'));
+
+          return Promise.resolve(voidedTx);
+        },
+      );
 
       const result = await service.voidTransaction(
         admin,
@@ -312,6 +359,35 @@ describe('InvestmentsService', () => {
       );
 
       expect(result.status).toBe('void');
+      expect(entries[0]).toEqual([
+        expect.objectContaining({
+          type: 'income',
+          amount: '10000000',
+          note: 'Pembatalan pembelian investasi · Emas Antam',
+          source: 'investment_void',
+          investmentTransactionId: buyTx.id,
+        }),
+      ]);
+    });
+
+    it('only flips the status of an opening holding, without any ledger entry', async () => {
+      const opening = { ...buyTx, type: 'opening' as const, walletId: null };
+
+      repository.FindById.mockResolvedValue(investment);
+      repository.FindTransactionById.mockResolvedValue(opening);
+      repository.ListTransactionsByInvestment.mockResolvedValue([opening]);
+      repository.UpdateTransactionStatus.mockResolvedValue({
+        ...opening,
+        status: 'void',
+      });
+
+      await service.voidTransaction(admin, investment.id, opening.id);
+
+      expect(repository.VoidTransactionWithEntry).not.toHaveBeenCalled();
+      expect(repository.UpdateTransactionStatus).toHaveBeenCalledWith(
+        opening.id,
+        'void',
+      );
     });
   });
 });

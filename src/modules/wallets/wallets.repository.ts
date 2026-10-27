@@ -169,31 +169,16 @@ export class WalletsRepository {
         ),
       );
 
-    // Pergerakan dana utang/piutang (pokok, pembayaran, revisi, pembatalan)
+    // Pergerakan dana utang/piutang dan investasi (beli, jual, pembatalan)
     // tercatat sebagai transaksi, jadi sudah ikut terhitung di income/expense.
-    // Jual menambah wallet, beli mengurangi wallet. Kepemilikan awal (opening)
-    // tidak terhubung ke wallet sehingga tidak pernah ikut dihitung.
-    const [investmentFlows] = await this.db
-      .select({
-        inflow: sql<string>`COALESCE(SUM(CASE WHEN ${investmentTransactions.type} = 'sell' THEN ${investmentTransactions.quantity} * ${investmentTransactions.price} ELSE 0 END), 0)`,
-        outflow: sql<string>`COALESCE(SUM(CASE WHEN ${investmentTransactions.type} = 'buy' THEN ${investmentTransactions.quantity} * ${investmentTransactions.price} ELSE 0 END), 0)`,
-      })
-      .from(investmentTransactions)
-      .where(
-        and(
-          eq(investmentTransactions.walletId, walletId),
-          eq(investmentTransactions.status, 'active'),
-        ),
-      );
-
+    // Kepemilikan awal (opening) tidak terhubung ke wallet sehingga tidak
+    // pernah menggerakkan saldo.
     const income = Number(txSums?.income ?? 0);
     const expense = Number(txSums?.expense ?? 0);
     const inbound = Number(transferIn?.total ?? 0);
     const outbound = Number(transferOut?.total ?? 0);
-    const investmentIn = Number(investmentFlows?.inflow ?? 0);
-    const investmentOut = Number(investmentFlows?.outflow ?? 0);
 
-    return income - expense + inbound - outbound + investmentIn - investmentOut;
+    return income - expense + inbound - outbound;
   }
 
   async HasAnyMoneyMovement(walletId: string): Promise<boolean> {

@@ -3,7 +3,10 @@ import { and, eq, or } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DATABASE } from '../../shared/database/database.provider';
 import {
-  categories,
+  DbTx,
+  ensureSystemCategory,
+} from '../../shared/database/system-category';
+import {
   Debt,
   DebtPayment,
   debtPayments,
@@ -16,7 +19,7 @@ import {
 
 export const DEBT_CATEGORY_NAME = 'Utang/Piutang';
 
-type Tx = Parameters<Parameters<NodePgDatabase['transaction']>[0]>[0];
+type Tx = DbTx;
 
 // Membangun entri transaksi dari record yang baru tersimpan di dalam DB transaction yang sama.
 export type LedgerEntryBuilder<T> = (
@@ -28,38 +31,8 @@ export type LedgerEntryBuilder<T> = (
 export class DebtsRepository {
   constructor(@Inject(DATABASE) private readonly db: NodePgDatabase) {}
 
-  private async ensureDebtCategory(
-    tx: Tx,
-    householdId: string,
-  ): Promise<string> {
-    const [existing] = await tx
-      .select({ id: categories.id })
-      .from(categories)
-      .where(
-        and(
-          eq(categories.householdId, householdId),
-          eq(categories.name, DEBT_CATEGORY_NAME),
-          eq(categories.isSystem, true),
-        ),
-      )
-      .limit(1);
-
-    if (existing) {
-      return existing.id;
-    }
-
-    const [created] = await tx
-      .insert(categories)
-      .values({
-        householdId,
-        name: DEBT_CATEGORY_NAME,
-        type: 'both',
-        isSystem: true,
-        isHidden: true,
-      })
-      .returning({ id: categories.id });
-
-    return created.id;
+  private ensureDebtCategory(tx: Tx, householdId: string): Promise<string> {
+    return ensureSystemCategory(tx, householdId, DEBT_CATEGORY_NAME);
   }
 
   private async insertEntries(

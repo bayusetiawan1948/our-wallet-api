@@ -242,9 +242,15 @@ export class TransactionsService {
     return corrected;
   }
 
-  // Entri hasil utang/piutang hanya boleh dibatalkan lewat menu utang/piutang
-  // supaya saldo dan data debt tidak bisa tidak sinkron.
+  // Entri hasil utang/piutang atau investasi hanya boleh dibatalkan lewat menu
+  // asalnya supaya saldo dan data sumbernya tidak bisa tidak sinkron.
   private assertNotDebtEntry(transaction: Transaction): void {
+    if (transaction.source?.startsWith('investment_')) {
+      throw new ConflictException(
+        'Transaksi ini berasal dari investasi, batalkan lewat menu Investasi',
+      );
+    }
+
     if (transaction.source !== null) {
       throw new ConflictException(
         'Transaksi ini berasal dari utang/piutang, batalkan lewat menu Utang & Piutang',

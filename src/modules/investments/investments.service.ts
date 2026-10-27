@@ -10,6 +10,7 @@ import {
   Investment,
   InvestmentTransaction,
   InvestmentValuation,
+  NewTransaction,
 } from '../../shared/database/schema';
 import { HouseholdsService } from '../households/households.service';
 import { WalletsService } from '../wallets/wallets.service';
@@ -248,15 +249,29 @@ export class InvestmentsService {
       }
     }
 
-    return this.investmentsRepository.CreateTransaction({
-      investmentId: investment.id,
-      walletId,
-      type,
-      quantity: quantity.toString(),
-      price: price.toString(),
-      date,
-      status: 'active',
-    });
+    const householdId = this.requireHousehold(currentUser);
+
+    // Beli mengeluarkan dana dari dompet, jual memasukkannya.
+    return this.investmentsRepository.CreateTransactionWithEntry(
+      householdId,
+      {
+        investmentId: investment.id,
+        walletId,
+        type,
+        quantity: quantity.toString(),
+        price: price.toString(),
+        date,
+        status: 'active',
+      },
+      (created, categoryId) => [
+        this.buildEntry(currentUser, investment, created, categoryId, {
+          type: type === 'buy' ? 'expense' : 'income',
+          note: `${type === 'buy' ? 'Pembelian' : 'Penjualan'} investasi · ${investment.assetName}`,
+          source: type === 'buy' ? 'investment_buy' : 'investment_sell',
+          date,
+        }),
+      ],
+    );
   }
 
   async listTransactions(
@@ -322,9 +337,35 @@ export class InvestmentsService {
       }
     }
 
-    const updated = await this.investmentsRepository.UpdateTransactionStatus(
+    // Opening tidak pernah menyentuh dompet, jadi cukup ditandai void.
+    if (!transaction.walletId) {
+      const voidedOpening =
+        await this.investmentsRepository.UpdateTransactionStatus(
+          transaction.id,
+          'void',
+        );
+
+      if (!voidedOpening) {
+        throw new NotFoundException('Investment transaction not found');
+      }
+
+      return voidedOpening;
+    }
+
+    // Void tidak menghapus entri aslinya: ditambah entri pembalik.
+    const householdId = this.requireHousehold(currentUser);
+    const wasSell = transaction.type === 'sell';
+    const updated = await this.investmentsRepository.VoidTransactionWithEntry(
+      householdId,
       transaction.id,
-      'void',
+      (voided, categoryId) => [
+        this.buildEntry(currentUser, investment, voided, categoryId, {
+          type: wasSell ? 'expense' : 'income',
+          note: `Pembatalan ${wasSell ? 'penjualan' : 'pembelian'} investasi · ${investment.assetName}`,
+          source: 'investment_void',
+          date: new Date().toISOString().split('T')[0],
+        }),
+      ],
     );
 
     if (!updated) {
@@ -356,6 +397,45 @@ export class InvestmentsService {
     await this.assertAccess(currentUser, investmentId);
 
     return this.investmentsRepository.ListValuationsByInvestment(investmentId);
+  }
+
+  private requireHousehold(currentUser: AuthenticatedUser): string {
+    if (!currentUser.householdId) {
+      throw new ForbiddenException('You do not belong to a household yet');
+    }
+
+    return currentUser.householdId;
+  }
+
+  private buildEntry(
+    currentUser: AuthenticatedUser,
+    investment: Investment,
+    investmentTransaction: InvestmentTransaction,
+    categoryId: string,
+    input: {
+      type: 'income' | 'expense';
+      note: string;
+      source: NewTransaction['source'];
+      date: string;
+    },
+  ): NewTransaction {
+    const amount =
+      Number(investmentTransaction.quantity) *
+      Number(investmentTransaction.price);
+
+    return {
+      walletId: investmentTransaction.walletId as string,
+      categoryId,
+      ownerId: investment.ownerUserId ?? currentUser.userId,
+      recordedBy: currentUser.userId,
+      type: input.type,
+      amount: (Math.round(amount * 100) / 100).toString(),
+      date: input.date,
+      note: input.note,
+      status: 'active',
+      source: input.source,
+      investmentTransactionId: investmentTransaction.id,
+    };
   }
 
   private computeQuantityHeld(transactions: InvestmentTransaction[]): number {

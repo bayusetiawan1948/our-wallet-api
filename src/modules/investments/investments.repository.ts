@@ -12,7 +12,12 @@ import {
   NewInvestment,
   NewInvestmentTransaction,
   NewInvestmentValuation,
+  transactions,
 } from '../../shared/database/schema';
+import { ensureSystemCategory } from '../../shared/database/system-category';
+import { LedgerEntryBuilder } from '../debts/debts.repository';
+
+export const INVESTMENT_CATEGORY_NAME = 'Investasi';
 
 @Injectable()
 export class InvestmentsRepository {
@@ -62,6 +67,58 @@ export class InvestmentsRepository {
       .returning();
 
     return created;
+  }
+
+  // Transaksi investasi dan entri transaksinya disimpan atomik supaya saldo
+  // dompet (yang dihitung dari tabel transactions) tidak pernah setengah jalan.
+  async CreateTransactionWithEntry(
+    householdId: string,
+    data: NewInvestmentTransaction,
+    buildEntries: LedgerEntryBuilder<InvestmentTransaction>,
+  ): Promise<InvestmentTransaction> {
+    return this.db.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(investmentTransactions)
+        .values(data)
+        .returning();
+      const categoryId = await ensureSystemCategory(
+        tx,
+        householdId,
+        INVESTMENT_CATEGORY_NAME,
+      );
+
+      await tx.insert(transactions).values(buildEntries(created, categoryId));
+
+      return created;
+    });
+  }
+
+  async VoidTransactionWithEntry(
+    householdId: string,
+    id: string,
+    buildEntries: LedgerEntryBuilder<InvestmentTransaction>,
+  ): Promise<InvestmentTransaction | undefined> {
+    return this.db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(investmentTransactions)
+        .set({ status: 'void' })
+        .where(eq(investmentTransactions.id, id))
+        .returning();
+
+      if (!updated) {
+        return undefined;
+      }
+
+      const categoryId = await ensureSystemCategory(
+        tx,
+        householdId,
+        INVESTMENT_CATEGORY_NAME,
+      );
+
+      await tx.insert(transactions).values(buildEntries(updated, categoryId));
+
+      return updated;
+    });
   }
 
   async UpdateInvestment(

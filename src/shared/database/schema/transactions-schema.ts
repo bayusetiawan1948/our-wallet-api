@@ -12,6 +12,7 @@ import { categories } from './categories-schema';
 import { users } from './users-schema';
 import { debts } from './debts-schema';
 import { debtPayments } from './debt_payments-schema';
+import { investmentTransactions } from './investment_transactions-schema';
 import {
   transactionTypeEnum,
   transactionStatusEnum,
@@ -38,13 +39,17 @@ export const transactions = pgTable('transactions', {
   note: text('note'),
   attachmentUrl: varchar('attachment_url', { length: 500 }),
   status: transactionStatusEnum('status').notNull().default('active'),
-  // Terisi hanya untuk entri yang dihasilkan otomatis oleh utang/piutang.
-  // Entri ini hanya boleh dibatalkan lewat menu utang/piutang.
+  // Terisi hanya untuk entri yang dihasilkan otomatis oleh utang/piutang atau
+  // investasi. Entri ini hanya boleh dibatalkan lewat menu asalnya.
   source: transactionSourceEnum('source'),
   debtId: uuid('debt_id').references(() => debts.id, { onDelete: 'set null' }),
   debtPaymentId: uuid('debt_payment_id').references(() => debtPayments.id, {
     onDelete: 'set null',
   }),
+  investmentTransactionId: uuid('investment_transaction_id').references(
+    () => investmentTransactions.id,
+    { onDelete: 'set null' },
+  ),
   correctionOfId: uuid('correction_of_id').references(
     (): AnyPgColumn => transactions.id,
     { onDelete: 'set null' },

@@ -27,6 +27,9 @@ export const transactionSourceEnum = pgEnum('transaction_source', [
   'debt_cancel',
   'debt_payment',
   'debt_payment_void',
+  'investment_buy',
+  'investment_sell',
+  'investment_void',
 ]);
 
 export const debtTypeEnum = pgEnum('debt_type', ['utang', 'piutang']);
