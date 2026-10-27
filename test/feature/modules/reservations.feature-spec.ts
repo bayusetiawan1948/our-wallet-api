@@ -1,5 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { authed, createAdmin, createMember, type Actor } from '../support/actors';
+import {
+  authed,
+  createAdmin,
+  createMember,
+  type Actor,
+} from '../support/actors';
 import {
   createBudget,
   createCategory,
@@ -9,7 +14,11 @@ import {
   getWalletBalance,
   TODAY,
 } from '../support/builders';
-import { closeTestApp, createTestApp, type TestContext } from '../support/test-app';
+import {
+  closeTestApp,
+  createTestApp,
+  type TestContext,
+} from '../support/test-app';
 
 describe('Reservations (feature)', () => {
   let ctx: TestContext;
@@ -34,9 +43,11 @@ describe('Reservations (feature)', () => {
     it('reserves wallet money for a budget with manual allocation by default', async () => {
       const wallet = await createWallet(ctx, admin);
       const budget = await createBudget(ctx, admin, category.id);
-      const res = await authed(ctx, admin)
-        .post('/reservations')
-        .send({ wallet_id: wallet.id, budget_id: budget.id, reserved_amount: 200_000 });
+      const res = await authed(ctx, admin).post('/reservations').send({
+        wallet_id: wallet.id,
+        budget_id: budget.id,
+        reserved_amount: 200_000,
+      });
 
       expect(res.status).toBe(201);
       expect(res.body.data).toMatchObject({
@@ -52,13 +63,15 @@ describe('Reservations (feature)', () => {
     it('reserves wallet money for a goal with a custom allocation', async () => {
       const wallet = await createWallet(ctx, admin);
       const goal = await createGoal(ctx, admin);
-      const res = await authed(ctx, admin).post('/reservations').send({
-        wallet_id: wallet.id,
-        goal_id: goal.id,
-        reserved_amount: 50_000,
-        allocation_method: 'percentage',
-        allocation_config: { percent: 10 },
-      });
+      const res = await authed(ctx, admin)
+        .post('/reservations')
+        .send({
+          wallet_id: wallet.id,
+          goal_id: goal.id,
+          reserved_amount: 50_000,
+          allocation_method: 'percentage',
+          allocation_config: { percent: 10 },
+        });
 
       expect(res.status).toBe(201);
       expect(res.body.data).toMatchObject({
@@ -72,28 +85,36 @@ describe('Reservations (feature)', () => {
     it('lets a member reserve on a household wallet', async () => {
       const wallet = await createWallet(ctx, admin);
       const goal = await createGoal(ctx, admin);
-      const res = await authed(ctx, member)
-        .post('/reservations')
-        .send({ wallet_id: wallet.id, goal_id: goal.id, reserved_amount: 1_000 });
+      const res = await authed(ctx, member).post('/reservations').send({
+        wallet_id: wallet.id,
+        goal_id: goal.id,
+        reserved_amount: 1_000,
+      });
 
       expect(res.status).toBe(201);
     });
 
     it('forbids a wallet of another household with 403', async () => {
-      const foreignWallet = await createWallet(ctx, outsider, { name: 'Asing' });
+      const foreignWallet = await createWallet(ctx, outsider, {
+        name: 'Asing',
+      });
       const goal = await createGoal(ctx, admin);
-      const res = await authed(ctx, admin)
-        .post('/reservations')
-        .send({ wallet_id: foreignWallet.id, goal_id: goal.id, reserved_amount: 1_000 });
+      const res = await authed(ctx, admin).post('/reservations').send({
+        wallet_id: foreignWallet.id,
+        goal_id: goal.id,
+        reserved_amount: 1_000,
+      });
 
       expect(res.status).toBe(403);
     });
 
     it('returns 404 for an unknown wallet', async () => {
       const goal = await createGoal(ctx, admin);
-      const res = await authed(ctx, admin)
-        .post('/reservations')
-        .send({ wallet_id: randomUUID(), goal_id: goal.id, reserved_amount: 1_000 });
+      const res = await authed(ctx, admin).post('/reservations').send({
+        wallet_id: randomUUID(),
+        goal_id: goal.id,
+        reserved_amount: 1_000,
+      });
 
       expect(res.status).toBe(404);
     });
@@ -101,9 +122,11 @@ describe('Reservations (feature)', () => {
     it('rejects a goal from another household', async () => {
       const wallet = await createWallet(ctx, admin);
       const foreignGoal = await createGoal(ctx, outsider);
-      const res = await authed(ctx, admin)
-        .post('/reservations')
-        .send({ wallet_id: wallet.id, goal_id: foreignGoal.id, reserved_amount: 1_000 });
+      const res = await authed(ctx, admin).post('/reservations').send({
+        wallet_id: wallet.id,
+        goal_id: foreignGoal.id,
+        reserved_amount: 1_000,
+      });
 
       expect(res.status).toBeGreaterThanOrEqual(400);
       expect(res.status).toBeLessThan(500);
@@ -149,10 +172,24 @@ describe('Reservations (feature)', () => {
       const otherWallet = await createWallet(ctx, admin, { name: 'Lain' });
       const goal = await createGoal(ctx, admin);
 
-      await createReservation(ctx, admin, wallet.id, { goal_id: goal.id }, 1_000);
-      await createReservation(ctx, admin, otherWallet.id, { goal_id: goal.id }, 2_000);
+      await createReservation(
+        ctx,
+        admin,
+        wallet.id,
+        { goal_id: goal.id },
+        1_000,
+      );
+      await createReservation(
+        ctx,
+        admin,
+        otherWallet.id,
+        { goal_id: goal.id },
+        2_000,
+      );
 
-      const res = await authed(ctx, member).get(`/reservations?wallet_id=${wallet.id}`);
+      const res = await authed(ctx, member).get(
+        `/reservations?wallet_id=${wallet.id}`,
+      );
 
       expect(res.status).toBe(200);
       expect(res.body.data).toHaveLength(1);
@@ -161,7 +198,9 @@ describe('Reservations (feature)', () => {
 
     it('forbids a wallet of another household with 403', async () => {
       const wallet = await createWallet(ctx, admin);
-      const res = await authed(ctx, outsider).get(`/reservations?wallet_id=${wallet.id}`);
+      const res = await authed(ctx, outsider).get(
+        `/reservations?wallet_id=${wallet.id}`,
+      );
 
       expect(res.status).toBe(403);
     });
@@ -185,18 +224,26 @@ describe('Reservations (feature)', () => {
     it('removes a reservation', async () => {
       const wallet = await createWallet(ctx, admin);
       const goal = await createGoal(ctx, admin);
-      const reservation = await createReservation(ctx, admin, wallet.id, { goal_id: goal.id });
-      const res = await authed(ctx, admin).delete(`/reservations/${reservation.id}`);
+      const reservation = await createReservation(ctx, admin, wallet.id, {
+        goal_id: goal.id,
+      });
+      const res = await authed(ctx, admin).delete(
+        `/reservations/${reservation.id}`,
+      );
 
       expect(res.status).toBe(200);
 
-      const list = await authed(ctx, admin).get(`/reservations?wallet_id=${wallet.id}`);
+      const list = await authed(ctx, admin).get(
+        `/reservations?wallet_id=${wallet.id}`,
+      );
 
       expect(list.body.data).toEqual([]);
     });
 
     it('returns 404 for an unknown reservation', async () => {
-      const res = await authed(ctx, admin).delete(`/reservations/${randomUUID()}`);
+      const res = await authed(ctx, admin).delete(
+        `/reservations/${randomUUID()}`,
+      );
 
       expect(res.status).toBe(404);
     });
@@ -204,8 +251,12 @@ describe('Reservations (feature)', () => {
     it('forbids another household with 403', async () => {
       const wallet = await createWallet(ctx, admin);
       const goal = await createGoal(ctx, admin);
-      const reservation = await createReservation(ctx, admin, wallet.id, { goal_id: goal.id });
-      const res = await authed(ctx, outsider).delete(`/reservations/${reservation.id}`);
+      const reservation = await createReservation(ctx, admin, wallet.id, {
+        goal_id: goal.id,
+      });
+      const res = await authed(ctx, outsider).delete(
+        `/reservations/${reservation.id}`,
+      );
 
       expect(res.status).toBe(403);
     });
@@ -213,7 +264,9 @@ describe('Reservations (feature)', () => {
 
   describe('free balance and encroachment', () => {
     const setup = async () => {
-      const wallet = await createWallet(ctx, admin, { initial_balance: 1_000_000 });
+      const wallet = await createWallet(ctx, admin, {
+        initial_balance: 1_000_000,
+      });
       const budget = await createBudget(ctx, admin, category.id);
       const reservation = await createReservation(
         ctx,
@@ -226,7 +279,11 @@ describe('Reservations (feature)', () => {
       return { wallet, budget, reservation };
     };
 
-    const expense = (walletId: string, amount: number, extra: Record<string, unknown> = {}) =>
+    const expense = (
+      walletId: string,
+      amount: number,
+      extra: Record<string, unknown> = {},
+    ) =>
       authed(ctx, admin)
         .post('/transactions')
         .send({
@@ -247,8 +304,14 @@ describe('Reservations (feature)', () => {
         `/transactions/encroachment-check?wallet_id=${wallet.id}&amount=500000`,
       );
 
-      expect(within.body.data).toEqual({ shortfall: 0, reserved_total: 600_000 });
-      expect(over.body.data).toEqual({ shortfall: 100_000, reserved_total: 600_000 });
+      expect(within.body.data).toEqual({
+        shortfall: 0,
+        reserved_total: 600_000,
+      });
+      expect(over.body.data).toEqual({
+        shortfall: 100_000,
+        reserved_total: 600_000,
+      });
     });
 
     it('lets an expense through when it fits in the free balance', async () => {
@@ -276,12 +339,18 @@ describe('Reservations (feature)', () => {
       expect(res.status).toBe(201);
       expect(await getWalletBalance(ctx, admin, wallet.id)).toBe(500_000);
 
-      const reservations = await authed(ctx, admin).get(`/reservations?wallet_id=${wallet.id}`);
-      const updated = reservations.body.data.find((r: { id: string }) => r.id === reservation.id);
+      const reservations = await authed(ctx, admin).get(
+        `/reservations?wallet_id=${wallet.id}`,
+      );
+      const updated = reservations.body.data.find(
+        (r: { id: string }) => r.id === reservation.id,
+      );
 
       expect(updated.reserved_amount).toBe(500_000);
 
-      const encroachments = await authed(ctx, admin).get(`/budgets/${budget.id}/encroachments`);
+      const encroachments = await authed(ctx, admin).get(
+        `/budgets/${budget.id}/encroachments`,
+      );
 
       expect(encroachments.body.data).toHaveLength(1);
       expect(encroachments.body.data[0]).toMatchObject({
@@ -297,7 +366,13 @@ describe('Reservations (feature)', () => {
       const { wallet, budget } = await setup();
       const goal = await createGoal(ctx, admin);
 
-      await createReservation(ctx, admin, wallet.id, { goal_id: goal.id }, 100_000);
+      await createReservation(
+        ctx,
+        admin,
+        wallet.id,
+        { goal_id: goal.id },
+        100_000,
+      );
 
       // free = 1_000_000 - 700_000 = 300_000; expense 450_000 → shortfall 150_000
       const res = await expense(wallet.id, 450_000, {
@@ -309,7 +384,9 @@ describe('Reservations (feature)', () => {
 
       expect(res.status).toBe(201);
 
-      const goalEncroachments = await authed(ctx, admin).get(`/goals/${goal.id}/encroachments`);
+      const goalEncroachments = await authed(ctx, admin).get(
+        `/goals/${goal.id}/encroachments`,
+      );
 
       expect(goalEncroachments.body.data).toHaveLength(1);
       expect(goalEncroachments.body.data[0].amount).toBe(50_000);
@@ -328,7 +405,9 @@ describe('Reservations (feature)', () => {
 
     it('does not leave a transaction behind when the allocation target is invalid', async () => {
       const { wallet } = await setup();
-      const unreserved = await createBudget(ctx, admin, category.id, { name: 'Tanpa Reservasi' });
+      const unreserved = await createBudget(ctx, admin, category.id, {
+        name: 'Tanpa Reservasi',
+      });
       const res = await expense(wallet.id, 500_000, {
         encroachments: [{ budget_id: unreserved.id, amount: 100_000 }],
       });

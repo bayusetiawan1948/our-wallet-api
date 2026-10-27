@@ -1,7 +1,16 @@
 import { randomUUID } from 'node:crypto';
-import { authed, createAdmin, createMember, type Actor } from '../support/actors';
+import {
+  authed,
+  createAdmin,
+  createMember,
+  type Actor,
+} from '../support/actors';
 import { createWallet, getWalletBalance, TODAY } from '../support/builders';
-import { closeTestApp, createTestApp, type TestContext } from '../support/test-app';
+import {
+  closeTestApp,
+  createTestApp,
+  type TestContext,
+} from '../support/test-app';
 
 describe('Investments management (feature)', () => {
   let ctx: TestContext;
@@ -22,7 +31,10 @@ describe('Investments management (feature)', () => {
     await closeTestApp(ctx);
   });
 
-  const createInvestment = async (actor: Actor, overrides: Record<string, unknown> = {}) => {
+  const createInvestment = async (
+    actor: Actor,
+    overrides: Record<string, unknown> = {},
+  ) => {
     const res = await authed(ctx, actor)
       .post('/investments')
       .send({
@@ -38,7 +50,9 @@ describe('Investments management (feature)', () => {
   };
 
   const findInList = async (actor: Actor, id: string) =>
-    (await authed(ctx, actor).get('/investments')).body.data.find((i: { id: string }) => i.id === id);
+    (await authed(ctx, actor).get('/investments')).body.data.find(
+      (i: { id: string }) => i.id === id,
+    );
 
   const trade = (
     actor: Actor,
@@ -52,7 +66,9 @@ describe('Investments management (feature)', () => {
       .send({ wallet_id: wallet.id, type, quantity, price, date: TODAY });
 
   const voidTx = (actor: Actor, investmentId: string, transactionId: string) =>
-    authed(ctx, actor).post(`/investments/${investmentId}/transactions/${transactionId}/void`);
+    authed(ctx, actor).post(
+      `/investments/${investmentId}/transactions/${transactionId}/void`,
+    );
 
   describe('opening holding (aset yang sudah dimiliki)', () => {
     it('creates an asset together with its opening holding', async () => {
@@ -71,9 +87,14 @@ describe('Investments management (feature)', () => {
 
       const found = await findInList(admin, res.body.data.id);
 
-      expect(found).toMatchObject({ quantity_held: 1_250.5, latest_price_per_unit: 1_500 });
+      expect(found).toMatchObject({
+        quantity_held: 1_250.5,
+        latest_price_per_unit: 1_500,
+      });
 
-      const txs = await authed(ctx, admin).get(`/investments/${res.body.data.id}/transactions`);
+      const txs = await authed(ctx, admin).get(
+        `/investments/${res.body.data.id}/transactions`,
+      );
 
       expect(txs.body.data).toHaveLength(1);
       expect(txs.body.data[0]).toMatchObject({
@@ -99,10 +120,18 @@ describe('Investments management (feature)', () => {
     });
 
     it('adds an opening holding to an existing asset without a wallet', async () => {
-      const inv = await createInvestment(admin, { asset_type: 'emas', unit: 'gram' });
+      const inv = await createInvestment(admin, {
+        asset_type: 'emas',
+        unit: 'gram',
+      });
       const res = await authed(ctx, admin)
         .post(`/investments/${inv.id}/transactions`)
-        .send({ type: 'opening', quantity: 15, price: 1_100_000, date: '2024-01-01' });
+        .send({
+          type: 'opening',
+          quantity: 15,
+          price: 1_100_000,
+          date: '2024-01-01',
+        });
 
       expect(res.status).toBe(201);
       expect(res.body.data).toMatchObject({ type: 'opening', wallet_id: null });
@@ -113,7 +142,13 @@ describe('Investments management (feature)', () => {
       const inv = await createInvestment(admin);
       const res = await authed(ctx, admin)
         .post(`/investments/${inv.id}/transactions`)
-        .send({ wallet_id: wallet.id, type: 'opening', quantity: 5, price: 1_000, date: TODAY });
+        .send({
+          wallet_id: wallet.id,
+          type: 'opening',
+          quantity: 5,
+          price: 1_000,
+          date: TODAY,
+        });
 
       expect(res.status).toBe(201);
       expect(res.body.data.wallet_id).toBeNull();
@@ -193,7 +228,10 @@ describe('Investments management (feature)', () => {
         .patch(`/investments/${inv.id}`)
         .send({ asset_name: 'Nama Baru' });
 
-      expect(res.body.data).toMatchObject({ quantity_held: 20, latest_price_per_unit: 9_000 });
+      expect(res.body.data).toMatchObject({
+        quantity_held: 20,
+        latest_price_per_unit: 9_000,
+      });
     });
 
     it('lets an admin move an asset from household to personal and back', async () => {
@@ -209,7 +247,9 @@ describe('Investments management (feature)', () => {
 
       const hiddenFromMember = await authed(ctx, member).get('/investments');
 
-      expect(hiddenFromMember.body.data.map((i: { id: string }) => i.id)).not.toContain(inv.id);
+      expect(
+        hiddenFromMember.body.data.map((i: { id: string }) => i.id),
+      ).not.toContain(inv.id);
 
       const toHousehold = await authed(ctx, admin)
         .patch(`/investments/${inv.id}`)
@@ -261,20 +301,26 @@ describe('Investments management (feature)', () => {
 
     it('forbids a member from editing a household asset with 403', async () => {
       const inv = await createInvestment(admin);
-      const res = await authed(ctx, member).patch(`/investments/${inv.id}`).send({ asset_name: 'Hack' });
+      const res = await authed(ctx, member)
+        .patch(`/investments/${inv.id}`)
+        .send({ asset_name: 'Hack' });
 
       expect(res.status).toBe(403);
     });
 
     it('forbids another household with 403', async () => {
       const inv = await createInvestment(admin);
-      const res = await authed(ctx, outsider).patch(`/investments/${inv.id}`).send({ asset_name: 'Hack' });
+      const res = await authed(ctx, outsider)
+        .patch(`/investments/${inv.id}`)
+        .send({ asset_name: 'Hack' });
 
       expect(res.status).toBe(403);
     });
 
     it('returns 404 for an unknown asset', async () => {
-      const res = await authed(ctx, admin).patch(`/investments/${randomUUID()}`).send({ asset_name: 'x' });
+      const res = await authed(ctx, admin)
+        .patch(`/investments/${randomUUID()}`)
+        .send({ asset_name: 'x' });
 
       expect(res.status).toBe(404);
     });
@@ -287,7 +333,9 @@ describe('Investments management (feature)', () => {
       ['non-uuid owner_user_id', { owner_user_id: 'abc' }],
     ])('rejects %s with 400', async (_label, body) => {
       const inv = await createInvestment(admin);
-      const res = await authed(ctx, admin).patch(`/investments/${inv.id}`).send(body);
+      const res = await authed(ctx, admin)
+        .patch(`/investments/${inv.id}`)
+        .send(body);
 
       expect(res.status).toBe(400);
     });
@@ -320,7 +368,10 @@ describe('Investments management (feature)', () => {
     });
 
     it('refuses while an opening holding is still active', async () => {
-      const inv = await createInvestment(admin, { opening_quantity: 5, opening_price: 1_000 });
+      const inv = await createInvestment(admin, {
+        opening_quantity: 5,
+        opening_price: 1_000,
+      });
       const res = await authed(ctx, admin).delete(`/investments/${inv.id}`);
 
       expect(res.status).toBe(409);
@@ -359,7 +410,9 @@ describe('Investments management (feature)', () => {
     });
 
     it('returns 404 for an unknown asset', async () => {
-      const res = await authed(ctx, admin).delete(`/investments/${randomUUID()}`);
+      const res = await authed(ctx, admin).delete(
+        `/investments/${randomUUID()}`,
+      );
 
       expect(res.status).toBe(404);
     });
@@ -379,18 +432,28 @@ describe('Investments management (feature)', () => {
       const res = await voidTx(admin, inv.id, buy.body.data.id);
 
       expect(res.status).toBe(200);
-      expect(res.body.data).toMatchObject({ id: buy.body.data.id, status: 'void' });
+      expect(res.body.data).toMatchObject({
+        id: buy.body.data.id,
+        status: 'void',
+      });
       expect((await findInList(admin, inv.id)).quantity_held).toBe(0);
       expect(await getWalletBalance(ctx, admin, wallet.id)).toBe(before);
 
-      const txs = await authed(ctx, admin).get(`/investments/${inv.id}/transactions`);
+      const txs = await authed(ctx, admin).get(
+        `/investments/${inv.id}/transactions`,
+      );
 
       expect(txs.body.data).toHaveLength(1);
     });
 
     it('voids an opening holding', async () => {
-      const inv = await createInvestment(admin, { opening_quantity: 8, opening_price: 1_000 });
-      const txs = await authed(ctx, admin).get(`/investments/${inv.id}/transactions`);
+      const inv = await createInvestment(admin, {
+        opening_quantity: 8,
+        opening_price: 1_000,
+      });
+      const txs = await authed(ctx, admin).get(
+        `/investments/${inv.id}/transactions`,
+      );
       const res = await voidTx(admin, inv.id, txs.body.data[0].id);
 
       expect(res.status).toBe(200);
@@ -422,7 +485,10 @@ describe('Investments management (feature)', () => {
     });
 
     it('rejects voiding a sell when the wallet can no longer return the proceeds', async () => {
-      const poor = await createWallet(ctx, admin, { name: 'Tipis', initial_balance: 200_000 });
+      const poor = await createWallet(ctx, admin, {
+        name: 'Tipis',
+        initial_balance: 200_000,
+      });
       const inv = await createInvestment(admin);
 
       await authed(ctx, admin)
@@ -432,7 +498,13 @@ describe('Investments management (feature)', () => {
 
       const sell = await authed(ctx, admin)
         .post(`/investments/${inv.id}/transactions`)
-        .send({ wallet_id: poor.id, type: 'sell', quantity: 5, price: 100_000, date: TODAY })
+        .send({
+          wallet_id: poor.id,
+          type: 'sell',
+          quantity: 5,
+          price: 100_000,
+          date: TODAY,
+        })
         .expect(201);
 
       // saldo wallet naik jadi 700k; habiskan dengan pembelian aset lain
@@ -440,7 +512,13 @@ describe('Investments management (feature)', () => {
 
       await authed(ctx, admin)
         .post(`/investments/${other.id}/transactions`)
-        .send({ wallet_id: poor.id, type: 'buy', quantity: 6, price: 100_000, date: TODAY })
+        .send({
+          wallet_id: poor.id,
+          type: 'buy',
+          quantity: 6,
+          price: 100_000,
+          date: TODAY,
+        })
         .expect(201);
 
       const res = await voidTx(admin, inv.id, sell.body.data.id);

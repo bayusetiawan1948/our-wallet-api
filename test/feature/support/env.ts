@@ -11,7 +11,9 @@ export function assertTestDatabase(): string {
   const url = process.env.DATABASE_URL;
 
   if (!url) {
-    throw new Error('DATABASE_URL belum diset. Salin .env.test.example ke .env.test');
+    throw new Error(
+      'DATABASE_URL belum diset. Salin .env.test.example ke .env.test',
+    );
   }
 
   const dbName = decodeURIComponent(new URL(url).pathname.slice(1));

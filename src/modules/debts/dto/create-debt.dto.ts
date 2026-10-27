@@ -1,9 +1,11 @@
 import {
+  IsBoolean,
   IsIn,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   Length,
   Min,
 } from 'class-validator';
@@ -32,6 +34,25 @@ export class CreateDebtDto {
   @IsNumber({}, { message: 'principal must be a number' })
   @Min(0.01, { message: 'principal must be greater than zero' })
   principal!: number;
+
+  // Debt baru: wajib diisi, dana pokok masuk/keluar dari dompet ini.
+  // Debt lama (is_opening): tidak boleh diisi, saldo tidak berubah.
+  @IsOptional()
+  @IsUUID('4', { message: 'wallet_id must be a valid UUID' })
+  wallet_id?: string;
+
+  @IsOptional()
+  @IsBoolean({ message: 'is_opening must be a boolean' })
+  is_opening?: boolean;
+
+  @IsOptional()
+  @IsNumber({}, { message: 'opening_paid must be a number' })
+  @Min(0, { message: 'opening_paid cannot be negative' })
+  opening_paid?: number;
+
+  @IsOptional()
+  @IsString({ message: 'date must be a string (YYYY-MM-DD)' })
+  date?: string;
 
   @IsOptional()
   @IsNumber({}, { message: 'portion_admin must be a number' })

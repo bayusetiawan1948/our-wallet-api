@@ -1,7 +1,21 @@
 import { randomUUID } from 'node:crypto';
-import { authed, createAdmin, createMember, registerActor, type Actor } from '../support/actors';
-import { createCategory, createTransaction, createWallet } from '../support/builders';
-import { closeTestApp, createTestApp, type TestContext } from '../support/test-app';
+import {
+  authed,
+  createAdmin,
+  createMember,
+  registerActor,
+  type Actor,
+} from '../support/actors';
+import {
+  createCategory,
+  createTransaction,
+  createWallet,
+} from '../support/builders';
+import {
+  closeTestApp,
+  createTestApp,
+  type TestContext,
+} from '../support/test-app';
 
 describe('Categories (feature)', () => {
   let ctx: TestContext;
@@ -67,7 +81,9 @@ describe('Categories (feature)', () => {
 
     it('forbids a user without a household with 403', async () => {
       const lone = await registerActor(ctx, 'Lone');
-      const res = await authed(ctx, lone).post('/categories').send({ name: 'Nope', type: 'expense' });
+      const res = await authed(ctx, lone)
+        .post('/categories')
+        .send({ name: 'Nope', type: 'expense' });
 
       expect(res.status).toBe(403);
     });
@@ -86,7 +102,9 @@ describe('Categories (feature)', () => {
   describe('GET /categories', () => {
     it('lets a member read the household categories only', async () => {
       const mine = await createCategory(ctx, admin, { name: 'Milik Kami' });
-      const foreign = await createCategory(ctx, outsider, { name: 'Milik Asing' });
+      const foreign = await createCategory(ctx, outsider, {
+        name: 'Milik Asing',
+      });
       const res = await authed(ctx, member).get('/categories');
 
       expect(res.status).toBe(200);
@@ -112,32 +130,44 @@ describe('Categories (feature)', () => {
         .send({ name: 'Baru', type: 'both', is_hidden: true });
 
       expect(res.status).toBe(200);
-      expect(res.body.data).toMatchObject({ name: 'Baru', type: 'both', is_hidden: true });
+      expect(res.body.data).toMatchObject({
+        name: 'Baru',
+        type: 'both',
+        is_hidden: true,
+      });
     });
 
     it('forbids a member', async () => {
       const category = await createCategory(ctx, admin);
-      const res = await authed(ctx, member).patch(`/categories/${category.id}`).send({ name: 'Hack' });
+      const res = await authed(ctx, member)
+        .patch(`/categories/${category.id}`)
+        .send({ name: 'Hack' });
 
       expect(res.status).toBe(403);
     });
 
     it('returns 404 for a category of another household', async () => {
       const category = await createCategory(ctx, admin);
-      const res = await authed(ctx, outsider).patch(`/categories/${category.id}`).send({ name: 'Hack' });
+      const res = await authed(ctx, outsider)
+        .patch(`/categories/${category.id}`)
+        .send({ name: 'Hack' });
 
       expect(res.status).toBe(404);
     });
 
     it('returns 404 for an unknown id', async () => {
-      const res = await authed(ctx, admin).patch(`/categories/${randomUUID()}`).send({ name: 'X' });
+      const res = await authed(ctx, admin)
+        .patch(`/categories/${randomUUID()}`)
+        .send({ name: 'X' });
 
       expect(res.status).toBe(404);
     });
 
     it('rejects an invalid type with 400', async () => {
       const category = await createCategory(ctx, admin);
-      const res = await authed(ctx, admin).patch(`/categories/${category.id}`).send({ type: 'x' });
+      const res = await authed(ctx, admin)
+        .patch(`/categories/${category.id}`)
+        .send({ type: 'x' });
 
       expect(res.status).toBe(400);
     });
@@ -146,19 +176,25 @@ describe('Categories (feature)', () => {
   describe('PATCH /categories/:id/toggle-status', () => {
     it('flips the hidden flag back and forth', async () => {
       const category = await createCategory(ctx, admin);
-      const hidden = await authed(ctx, admin).patch(`/categories/${category.id}/toggle-status`);
+      const hidden = await authed(ctx, admin).patch(
+        `/categories/${category.id}/toggle-status`,
+      );
 
       expect(hidden.status).toBe(200);
       expect(hidden.body.data.is_hidden).toBe(true);
 
-      const shown = await authed(ctx, admin).patch(`/categories/${category.id}/toggle-status`);
+      const shown = await authed(ctx, admin).patch(
+        `/categories/${category.id}/toggle-status`,
+      );
 
       expect(shown.body.data.is_hidden).toBe(false);
     });
 
     it('forbids a member', async () => {
       const category = await createCategory(ctx, admin);
-      const res = await authed(ctx, member).patch(`/categories/${category.id}/toggle-status`);
+      const res = await authed(ctx, member).patch(
+        `/categories/${category.id}/toggle-status`,
+      );
 
       expect(res.status).toBe(403);
     });
@@ -173,7 +209,9 @@ describe('Categories (feature)', () => {
 
       const list = await authed(ctx, admin).get('/categories');
 
-      expect(list.body.data.map((c: { id: string }) => c.id)).not.toContain(category.id);
+      expect(list.body.data.map((c: { id: string }) => c.id)).not.toContain(
+        category.id,
+      );
     });
 
     it('refuses to delete a category that has sub-categories with 409', async () => {
@@ -199,14 +237,18 @@ describe('Categories (feature)', () => {
 
     it('forbids a member', async () => {
       const category = await createCategory(ctx, admin);
-      const res = await authed(ctx, member).delete(`/categories/${category.id}`);
+      const res = await authed(ctx, member).delete(
+        `/categories/${category.id}`,
+      );
 
       expect(res.status).toBe(403);
     });
 
     it('returns 404 for a category of another household', async () => {
       const category = await createCategory(ctx, admin);
-      const res = await authed(ctx, outsider).delete(`/categories/${category.id}`);
+      const res = await authed(ctx, outsider).delete(
+        `/categories/${category.id}`,
+      );
 
       expect(res.status).toBe(404);
     });

@@ -1,7 +1,17 @@
 import { randomUUID } from 'node:crypto';
-import { authed, createAdmin, createMember, registerActor, type Actor } from '../support/actors';
+import {
+  authed,
+  createAdmin,
+  createMember,
+  registerActor,
+  type Actor,
+} from '../support/actors';
 import { createWallet, TODAY } from '../support/builders';
-import { closeTestApp, createTestApp, type TestContext } from '../support/test-app';
+import {
+  closeTestApp,
+  createTestApp,
+  type TestContext,
+} from '../support/test-app';
 
 describe('Investments (feature)', () => {
   let ctx: TestContext;
@@ -23,7 +33,10 @@ describe('Investments (feature)', () => {
     await closeTestApp(ctx);
   });
 
-  const createInvestment = async (actor: Actor, overrides: Record<string, unknown> = {}) => {
+  const createInvestment = async (
+    actor: Actor,
+    overrides: Record<string, unknown> = {},
+  ) => {
     const res = await authed(ctx, actor)
       .post('/investments')
       .send({
@@ -49,7 +62,9 @@ describe('Investments (feature)', () => {
       .send({ wallet_id: walletId, date: TODAY, ...body });
 
   const findInList = async (actor: Actor, id: string) =>
-    (await authed(ctx, actor).get('/investments')).body.data.find((i: { id: string }) => i.id === id);
+    (await authed(ctx, actor).get('/investments')).body.data.find(
+      (i: { id: string }) => i.id === id,
+    );
 
   describe('POST /investments', () => {
     it('creates a household investment with no holding and no price', async () => {
@@ -75,7 +90,9 @@ describe('Investments (feature)', () => {
     it('records the initial price as the first valuation', async () => {
       const inv = await createInvestment(admin, { initial_price: 1_000_000 });
 
-      expect((await findInList(admin, inv.id)).latest_price_per_unit).toBe(1_000_000);
+      expect((await findInList(admin, inv.id)).latest_price_per_unit).toBe(
+        1_000_000,
+      );
     });
 
     it('lets a member create a personal investment', async () => {
@@ -144,8 +161,12 @@ describe('Investments (feature)', () => {
   describe('GET /investments', () => {
     it('shows household and own personal investments only', async () => {
       const household = await createInvestment(admin);
-      const adminPersonal = await createInvestment(admin, { owner_type: 'user' });
-      const memberPersonal = await createInvestment(member, { owner_type: 'user' });
+      const adminPersonal = await createInvestment(admin, {
+        owner_type: 'user',
+      });
+      const memberPersonal = await createInvestment(member, {
+        owner_type: 'user',
+      });
       const foreign = await createInvestment(outsider);
 
       const res = await authed(ctx, member).get('/investments');
@@ -162,7 +183,11 @@ describe('Investments (feature)', () => {
   describe('transactions', () => {
     it('records a buy and raises the quantity held', async () => {
       const inv = await createInvestment(admin);
-      const res = await trade(admin, inv.id, { type: 'buy', quantity: 10, price: 1_000_000 });
+      const res = await trade(admin, inv.id, {
+        type: 'buy',
+        quantity: 10,
+        price: 1_000_000,
+      });
 
       expect(res.status).toBe(201);
       expect(res.body.data).toMatchObject({
@@ -180,27 +205,57 @@ describe('Investments (feature)', () => {
     it('records a sell and lowers the quantity held', async () => {
       const inv = await createInvestment(admin);
 
-      await trade(admin, inv.id, { type: 'buy', quantity: 10, price: 100_000 }).expect(201);
-      await trade(admin, inv.id, { type: 'sell', quantity: 4, price: 120_000 }).expect(201);
+      await trade(admin, inv.id, {
+        type: 'buy',
+        quantity: 10,
+        price: 100_000,
+      }).expect(201);
+      await trade(admin, inv.id, {
+        type: 'sell',
+        quantity: 4,
+        price: 120_000,
+      }).expect(201);
 
       expect((await findInList(admin, inv.id)).quantity_held).toBe(6);
     });
 
     it('supports fractional quantities', async () => {
-      const inv = await createInvestment(admin, { asset_type: 'crypto', unit: 'btc' });
+      const inv = await createInvestment(admin, {
+        asset_type: 'crypto',
+        unit: 'btc',
+      });
 
-      await trade(admin, inv.id, { type: 'buy', quantity: 0.5, price: 100_000 }).expect(201);
-      await trade(admin, inv.id, { type: 'sell', quantity: 0.25, price: 100_000 }).expect(201);
+      await trade(admin, inv.id, {
+        type: 'buy',
+        quantity: 0.5,
+        price: 100_000,
+      }).expect(201);
+      await trade(admin, inv.id, {
+        type: 'sell',
+        quantity: 0.25,
+        price: 100_000,
+      }).expect(201);
 
-      expect((await findInList(admin, inv.id)).quantity_held).toBeCloseTo(0.25, 8);
+      expect((await findInList(admin, inv.id)).quantity_held).toBeCloseTo(
+        0.25,
+        8,
+      );
     });
 
     it('rejects selling more than is held with 409', async () => {
       const inv = await createInvestment(admin);
 
-      await trade(admin, inv.id, { type: 'buy', quantity: 2, price: 100_000 }).expect(201);
+      await trade(admin, inv.id, {
+        type: 'buy',
+        quantity: 2,
+        price: 100_000,
+      }).expect(201);
 
-      const res = await trade(admin, inv.id, { type: 'sell', quantity: 3, price: 100_000 });
+      const res = await trade(admin, inv.id, {
+        type: 'sell',
+        quantity: 3,
+        price: 100_000,
+      });
 
       expect(res.status).toBe(409);
       expect(res.body.message).toMatch(/Insufficient holding/);
@@ -208,22 +263,36 @@ describe('Investments (feature)', () => {
 
     it('rejects selling something never bought with 409', async () => {
       const inv = await createInvestment(admin);
-      const res = await trade(admin, inv.id, { type: 'sell', quantity: 1, price: 100_000 });
+      const res = await trade(admin, inv.id, {
+        type: 'sell',
+        quantity: 1,
+        price: 100_000,
+      });
 
       expect(res.status).toBe(409);
     });
 
     it('rejects a buy larger than the wallet balance with 409', async () => {
-      const poor = await createWallet(ctx, admin, { name: 'Miskin', initial_balance: 1_000 });
+      const poor = await createWallet(ctx, admin, {
+        name: 'Miskin',
+        initial_balance: 1_000,
+      });
       const inv = await createInvestment(admin);
-      const res = await trade(admin, inv.id, { type: 'buy', quantity: 1, price: 5_000 }, poor.id);
+      const res = await trade(
+        admin,
+        inv.id,
+        { type: 'buy', quantity: 1, price: 5_000 },
+        poor.id,
+      );
 
       expect(res.status).toBe(409);
       expect(res.body.message).toMatch(/Insufficient balance/);
     });
 
     it('forbids a wallet of another household with 403', async () => {
-      const foreignWallet = await createWallet(ctx, outsider, { name: 'Asing' });
+      const foreignWallet = await createWallet(ctx, outsider, {
+        name: 'Asing',
+      });
       const inv = await createInvestment(admin);
       const res = await trade(
         admin,
@@ -237,29 +306,54 @@ describe('Investments (feature)', () => {
 
     it('forbids another household from trading or listing with 403', async () => {
       const inv = await createInvestment(admin);
-      const foreignWallet = await createWallet(ctx, outsider, { name: 'Asing' });
+      const foreignWallet = await createWallet(ctx, outsider, {
+        name: 'Asing',
+      });
 
       expect(
-        (await trade(outsider, inv.id, { type: 'buy', quantity: 1, price: 1_000 }, foreignWallet.id))
+        (
+          await trade(
+            outsider,
+            inv.id,
+            { type: 'buy', quantity: 1, price: 1_000 },
+            foreignWallet.id,
+          )
+        ).status,
+      ).toBe(403);
+      expect(
+        (await authed(ctx, outsider).get(`/investments/${inv.id}/transactions`))
           .status,
       ).toBe(403);
-      expect((await authed(ctx, outsider).get(`/investments/${inv.id}/transactions`)).status).toBe(403);
     });
 
     it('lists transactions of an investment', async () => {
       const inv = await createInvestment(admin);
 
-      await trade(admin, inv.id, { type: 'buy', quantity: 1, price: 1_000 }).expect(201);
-      await trade(admin, inv.id, { type: 'buy', quantity: 2, price: 1_000 }).expect(201);
+      await trade(admin, inv.id, {
+        type: 'buy',
+        quantity: 1,
+        price: 1_000,
+      }).expect(201);
+      await trade(admin, inv.id, {
+        type: 'buy',
+        quantity: 2,
+        price: 1_000,
+      }).expect(201);
 
-      const res = await authed(ctx, member).get(`/investments/${inv.id}/transactions`);
+      const res = await authed(ctx, member).get(
+        `/investments/${inv.id}/transactions`,
+      );
 
       expect(res.status).toBe(200);
       expect(res.body.data).toHaveLength(2);
     });
 
     it('returns 404 for an unknown investment', async () => {
-      const res = await trade(admin, randomUUID(), { type: 'buy', quantity: 1, price: 1_000 });
+      const res = await trade(admin, randomUUID(), {
+        type: 'buy',
+        quantity: 1,
+        price: 1_000,
+      });
 
       expect(res.status).toBe(404);
     });
@@ -274,7 +368,14 @@ describe('Investments (feature)', () => {
       const inv = await createInvestment(admin);
       const res = await authed(ctx, admin)
         .post(`/investments/${inv.id}/transactions`)
-        .send({ wallet_id: wallet.id, type: 'buy', quantity: 1, price: 1_000, date: TODAY, ...override });
+        .send({
+          wallet_id: wallet.id,
+          type: 'buy',
+          quantity: 1,
+          price: 1_000,
+          date: TODAY,
+          ...override,
+        });
 
       expect(res.status).toBe(400);
     });
@@ -294,7 +395,9 @@ describe('Investments (feature)', () => {
         source: 'manual',
       });
 
-      const list = await authed(ctx, member).get(`/investments/${inv.id}/valuations`);
+      const list = await authed(ctx, member).get(
+        `/investments/${inv.id}/valuations`,
+      );
 
       expect(list.status).toBe(200);
       expect(list.body.data).toHaveLength(1);
@@ -325,7 +428,9 @@ describe('Investments (feature)', () => {
       const post = await authed(ctx, outsider)
         .post(`/investments/${inv.id}/valuations`)
         .send({ price_per_unit: 1 });
-      const get = await authed(ctx, outsider).get(`/investments/${inv.id}/valuations`);
+      const get = await authed(ctx, outsider).get(
+        `/investments/${inv.id}/valuations`,
+      );
 
       expect(post.status).toBe(403);
       expect(get.status).toBe(403);

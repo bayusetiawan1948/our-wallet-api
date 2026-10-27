@@ -59,6 +59,9 @@ describe('TransactionsService', () => {
     note: null,
     attachmentUrl: null,
     status: 'active',
+    source: null,
+    debtId: null,
+    debtPaymentId: null,
     correctionOfId: null,
   };
 
@@ -254,6 +257,20 @@ describe('TransactionsService', () => {
       await expect(service.void(admin, transaction.id)).rejects.toBeInstanceOf(
         ConflictException,
       );
+    });
+
+    it('rejects voiding an entry that originates from a debt', async () => {
+      repository.FindById.mockResolvedValue({
+        ...transaction,
+        source: 'debt_create',
+        debtId: 'debt-1',
+      });
+      walletsService.getById.mockResolvedValue(wallet);
+
+      await expect(service.void(admin, transaction.id)).rejects.toBeInstanceOf(
+        ConflictException,
+      );
+      expect(repository.UpdateStatus).not.toHaveBeenCalled();
     });
 
     it('voids an active transaction', async () => {

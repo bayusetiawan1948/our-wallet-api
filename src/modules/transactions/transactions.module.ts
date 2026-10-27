@@ -8,7 +8,12 @@ import { TransactionsRepository } from './transactions.repository';
 import { TransactionsService } from './transactions.service';
 
 @Module({
-  imports: [WalletsModule, HouseholdsModule, ReservationsModule, AuditLogsModule],
+  imports: [
+    WalletsModule,
+    HouseholdsModule,
+    ReservationsModule,
+    AuditLogsModule,
+  ],
   controllers: [TransactionsController],
   providers: [TransactionsService, TransactionsRepository],
   exports: [TransactionsService],

@@ -160,6 +160,8 @@ export class TransactionsService {
       transactionId,
     );
 
+    this.assertNotDebtEntry(transaction);
+
     if (transaction.status === 'void') {
       throw new ConflictException('Transaction is already void');
     }
@@ -192,6 +194,8 @@ export class TransactionsService {
       currentUser,
       transactionId,
     );
+
+    this.assertNotDebtEntry(original);
 
     if (original.status === 'void') {
       throw new ConflictException(
@@ -236,6 +240,16 @@ export class TransactionsService {
     );
 
     return corrected;
+  }
+
+  // Entri hasil utang/piutang hanya boleh dibatalkan lewat menu utang/piutang
+  // supaya saldo dan data debt tidak bisa tidak sinkron.
+  private assertNotDebtEntry(transaction: Transaction): void {
+    if (transaction.source !== null) {
+      throw new ConflictException(
+        'Transaksi ini berasal dari utang/piutang, batalkan lewat menu Utang & Piutang',
+      );
+    }
   }
 
   private async resolveOwnerId(

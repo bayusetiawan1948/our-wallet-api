@@ -3,6 +3,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   Length,
   Min,
 } from 'class-validator';
@@ -25,6 +26,15 @@ export class UpdateDebtDto {
   @IsNumber({}, { message: 'principal must be a number' })
   @Min(0.01, { message: 'principal must be greater than zero' })
   principal?: number;
+
+  @IsOptional()
+  @IsUUID('4', { message: 'wallet_id must be a valid UUID' })
+  wallet_id?: string;
+
+  @IsOptional()
+  @IsNumber({}, { message: 'opening_paid must be a number' })
+  @Min(0, { message: 'opening_paid cannot be negative' })
+  opening_paid?: number;
 
   @IsOptional()
   @IsNumber({}, { message: 'portion_admin must be a number' })

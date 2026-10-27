@@ -1,5 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { authed, createAdmin, createMember, registerActor, type Actor } from '../support/actors';
+import {
+  authed,
+  createAdmin,
+  createMember,
+  registerActor,
+  type Actor,
+} from '../support/actors';
 import {
   createBudget,
   createCategory,
@@ -7,7 +13,11 @@ import {
   createTransaction,
   createWallet,
 } from '../support/builders';
-import { closeTestApp, createTestApp, type TestContext } from '../support/test-app';
+import {
+  closeTestApp,
+  createTestApp,
+  type TestContext,
+} from '../support/test-app';
 
 describe('Budgets (feature)', () => {
   let ctx: TestContext;
@@ -23,7 +33,10 @@ describe('Budgets (feature)', () => {
     member = await createMember(ctx, admin, 'Member');
     outsider = await createAdmin(ctx, 'Outsider');
     wallet = await createWallet(ctx, admin, { initial_balance: 10_000_000 });
-    category = await createCategory(ctx, admin, { name: 'Makan', type: 'expense' });
+    category = await createCategory(ctx, admin, {
+      name: 'Makan',
+      type: 'expense',
+    });
   });
 
   afterAll(async () => {
@@ -31,7 +44,9 @@ describe('Budgets (feature)', () => {
   });
 
   const findInList = async (actor: Actor, id: string) =>
-    (await authed(ctx, actor).get('/budgets')).body.data.find((b: { id: string }) => b.id === id);
+    (await authed(ctx, actor).get('/budgets')).body.data.find(
+      (b: { id: string }) => b.id === id,
+    );
 
   const spend = (amount: number, date: string, categoryId = category.id) =>
     createTransaction(ctx, admin, wallet.id, categoryId, { amount, date });
@@ -169,9 +184,15 @@ describe('Budgets (feature)', () => {
   describe('GET /budgets', () => {
     it('shows household and own personal budgets only', async () => {
       const household = await createBudget(ctx, admin, category.id);
-      const adminPersonal = await createBudget(ctx, admin, category.id, { owner_type: 'user' });
-      const memberPersonal = await createBudget(ctx, member, category.id, { owner_type: 'user' });
-      const foreignCategory = await createCategory(ctx, outsider, { name: 'Asing' });
+      const adminPersonal = await createBudget(ctx, admin, category.id, {
+        owner_type: 'user',
+      });
+      const memberPersonal = await createBudget(ctx, member, category.id, {
+        owner_type: 'user',
+      });
+      const foreignCategory = await createCategory(ctx, outsider, {
+        name: 'Asing',
+      });
       const foreign = await createBudget(ctx, outsider, foreignCategory.id);
 
       const res = await authed(ctx, member).get('/budgets');
@@ -187,8 +208,13 @@ describe('Budgets (feature)', () => {
 
   describe('spending progress', () => {
     it('counts expenses of the category inside the period only', async () => {
-      const cat = await createCategory(ctx, admin, { name: 'Hiburan', type: 'expense' });
-      const budget = await createBudget(ctx, admin, cat.id, { target_amount: 100_000 });
+      const cat = await createCategory(ctx, admin, {
+        name: 'Hiburan',
+        type: 'expense',
+      });
+      const budget = await createBudget(ctx, admin, cat.id, {
+        target_amount: 100_000,
+      });
 
       await spend(30_000, '2030-01-10', cat.id);
       await spend(20_000, '2030-01-31', cat.id);
@@ -206,8 +232,14 @@ describe('Budgets (feature)', () => {
     });
 
     it('ignores other categories, income and voided expenses', async () => {
-      const cat = await createCategory(ctx, admin, { name: 'Pakaian', type: 'both' });
-      const other = await createCategory(ctx, admin, { name: 'Lain', type: 'expense' });
+      const cat = await createCategory(ctx, admin, {
+        name: 'Pakaian',
+        type: 'both',
+      });
+      const other = await createCategory(ctx, admin, {
+        name: 'Lain',
+        type: 'expense',
+      });
       const budget = await createBudget(ctx, admin, cat.id);
 
       await spend(10_000, '2030-01-05', other.id);
@@ -220,14 +252,21 @@ describe('Budgets (feature)', () => {
       const voidMe = await spend(40_000, '2030-01-06', cat.id);
 
       await spend(5_000, '2030-01-07', cat.id);
-      await authed(ctx, admin).post(`/transactions/${voidMe.id}/void`).expect(200);
+      await authed(ctx, admin)
+        .post(`/transactions/${voidMe.id}/void`)
+        .expect(200);
 
       expect((await findInList(admin, budget.id)).spent_amount).toBe(5_000);
     });
 
     it('flags an overspent budget and reports the deficit', async () => {
-      const cat = await createCategory(ctx, admin, { name: 'Kopi', type: 'expense' });
-      const budget = await createBudget(ctx, admin, cat.id, { target_amount: 100_000 });
+      const cat = await createCategory(ctx, admin, {
+        name: 'Kopi',
+        type: 'expense',
+      });
+      const budget = await createBudget(ctx, admin, cat.id, {
+        target_amount: 100_000,
+      });
 
       await spend(150_000, '2030-01-10', cat.id);
 
@@ -240,11 +279,26 @@ describe('Budgets (feature)', () => {
     });
 
     it('includes reserved amounts in total_reserved', async () => {
-      const cat = await createCategory(ctx, admin, { name: 'Sewa', type: 'expense' });
+      const cat = await createCategory(ctx, admin, {
+        name: 'Sewa',
+        type: 'expense',
+      });
       const budget = await createBudget(ctx, admin, cat.id);
 
-      await createReservation(ctx, admin, wallet.id, { budget_id: budget.id }, 25_000);
-      await createReservation(ctx, admin, wallet.id, { budget_id: budget.id }, 5_000);
+      await createReservation(
+        ctx,
+        admin,
+        wallet.id,
+        { budget_id: budget.id },
+        25_000,
+      );
+      await createReservation(
+        ctx,
+        admin,
+        wallet.id,
+        { budget_id: budget.id },
+        5_000,
+      );
 
       expect((await findInList(admin, budget.id)).total_reserved).toBe(30_000);
     });
@@ -268,20 +322,26 @@ describe('Budgets (feature)', () => {
 
     it('forbids another household with 403', async () => {
       const budget = await createBudget(ctx, admin, category.id);
-      const res = await authed(ctx, outsider).patch(`/budgets/${budget.id}`).send({ name: 'hack' });
+      const res = await authed(ctx, outsider)
+        .patch(`/budgets/${budget.id}`)
+        .send({ name: 'hack' });
 
       expect(res.status).toBe(403);
     });
 
     it('returns 404 for an unknown budget', async () => {
-      const res = await authed(ctx, admin).patch(`/budgets/${randomUUID()}`).send({ name: 'x' });
+      const res = await authed(ctx, admin)
+        .patch(`/budgets/${randomUUID()}`)
+        .send({ name: 'x' });
 
       expect(res.status).toBe(404);
     });
 
     it('rejects an invalid body with 400', async () => {
       const budget = await createBudget(ctx, admin, category.id);
-      const res = await authed(ctx, admin).patch(`/budgets/${budget.id}`).send({ target_amount: 0 });
+      const res = await authed(ctx, admin)
+        .patch(`/budgets/${budget.id}`)
+        .send({ target_amount: 0 });
 
       expect(res.status).toBe(400);
     });
@@ -306,12 +366,19 @@ describe('Budgets (feature)', () => {
 
   describe('POST /budgets/:id/close-period', () => {
     it('carries the deficit into a new period with a higher effective target', async () => {
-      const cat = await createCategory(ctx, admin, { name: 'Tagihan', type: 'expense' });
-      const budget = await createBudget(ctx, admin, cat.id, { target_amount: 100_000 });
+      const cat = await createCategory(ctx, admin, {
+        name: 'Tagihan',
+        type: 'expense',
+      });
+      const budget = await createBudget(ctx, admin, cat.id, {
+        target_amount: 100_000,
+      });
 
       await spend(150_000, '2030-01-10', cat.id);
 
-      const res = await authed(ctx, admin).post(`/budgets/${budget.id}/close-period`);
+      const res = await authed(ctx, admin).post(
+        `/budgets/${budget.id}/close-period`,
+      );
 
       expect(res.status).toBe(200);
       expect(res.body.data).toMatchObject({
@@ -330,19 +397,31 @@ describe('Budgets (feature)', () => {
     });
 
     it('carries nothing when the budget was not overspent', async () => {
-      const cat = await createCategory(ctx, admin, { name: 'Air', type: 'expense' });
-      const budget = await createBudget(ctx, admin, cat.id, { target_amount: 100_000 });
+      const cat = await createCategory(ctx, admin, {
+        name: 'Air',
+        type: 'expense',
+      });
+      const budget = await createBudget(ctx, admin, cat.id, {
+        target_amount: 100_000,
+      });
 
       await spend(40_000, '2030-01-10', cat.id);
 
-      const res = await authed(ctx, admin).post(`/budgets/${budget.id}/close-period`);
+      const res = await authed(ctx, admin).post(
+        `/budgets/${budget.id}/close-period`,
+      );
 
-      expect(res.body.data).toMatchObject({ carried_deficit: 0, effective_target: 100_000 });
+      expect(res.body.data).toMatchObject({
+        carried_deficit: 0,
+        effective_target: 100_000,
+      });
     });
 
     it('forbids another household with 403', async () => {
       const budget = await createBudget(ctx, admin, category.id);
-      const res = await authed(ctx, outsider).post(`/budgets/${budget.id}/close-period`);
+      const res = await authed(ctx, outsider).post(
+        `/budgets/${budget.id}/close-period`,
+      );
 
       expect(res.status).toBe(403);
     });
@@ -352,18 +431,31 @@ describe('Budgets (feature)', () => {
     it('returns reservations of the budget to a household member', async () => {
       const budget = await createBudget(ctx, admin, category.id);
 
-      await createReservation(ctx, admin, wallet.id, { budget_id: budget.id }, 12_000);
+      await createReservation(
+        ctx,
+        admin,
+        wallet.id,
+        { budget_id: budget.id },
+        12_000,
+      );
 
-      const res = await authed(ctx, member).get(`/budgets/${budget.id}/reservations`);
+      const res = await authed(ctx, member).get(
+        `/budgets/${budget.id}/reservations`,
+      );
 
       expect(res.status).toBe(200);
       expect(res.body.data).toHaveLength(1);
-      expect(res.body.data[0]).toMatchObject({ budget_id: budget.id, reserved_amount: 12_000 });
+      expect(res.body.data[0]).toMatchObject({
+        budget_id: budget.id,
+        reserved_amount: 12_000,
+      });
     });
 
     it('returns an empty list of encroachments for a fresh budget', async () => {
       const budget = await createBudget(ctx, admin, category.id);
-      const res = await authed(ctx, admin).get(`/budgets/${budget.id}/encroachments`);
+      const res = await authed(ctx, admin).get(
+        `/budgets/${budget.id}/encroachments`,
+      );
 
       expect(res.status).toBe(200);
       expect(res.body.data).toEqual([]);
@@ -372,16 +464,26 @@ describe('Budgets (feature)', () => {
     it('forbids another household from reading reservations', async () => {
       const budget = await createBudget(ctx, admin, category.id);
 
-      await createReservation(ctx, admin, wallet.id, { budget_id: budget.id }, 12_000);
+      await createReservation(
+        ctx,
+        admin,
+        wallet.id,
+        { budget_id: budget.id },
+        12_000,
+      );
 
-      const res = await authed(ctx, outsider).get(`/budgets/${budget.id}/reservations`);
+      const res = await authed(ctx, outsider).get(
+        `/budgets/${budget.id}/reservations`,
+      );
 
       expect(res.status).toBe(403);
     });
 
     it('forbids another household from reading encroachments', async () => {
       const budget = await createBudget(ctx, admin, category.id);
-      const res = await authed(ctx, outsider).get(`/budgets/${budget.id}/encroachments`);
+      const res = await authed(ctx, outsider).get(
+        `/budgets/${budget.id}/encroachments`,
+      );
 
       expect(res.status).toBe(403);
     });

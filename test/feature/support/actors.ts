@@ -80,7 +80,9 @@ export async function createMember(
   name = 'Member User',
 ): Promise<Actor> {
   const registered = await registerActor(ctx, name);
-  const invite = await authed(ctx, admin).post('/households/invites').expect(201);
+  const invite = await authed(ctx, admin)
+    .post('/households/invites')
+    .expect(201);
 
   await authed(ctx, registered)
     .post('/households/invites/accept')
@@ -97,7 +99,10 @@ export interface AuthedClient {
   delete(url: string): request.Test;
 }
 
-export function authed(ctx: TestContext, actor: Pick<Actor, 'token'>): AuthedClient {
+export function authed(
+  ctx: TestContext,
+  actor: Pick<Actor, 'token'>,
+): AuthedClient {
   const bearer = `Bearer ${actor.token}`;
 
   return {

@@ -27,10 +27,7 @@ export class TransactionsController {
     @CurrentUser() currentUser: AuthenticatedUser,
     @Body() dto: CreateTransactionDto,
   ) {
-    const transaction = await this.transactionsService.create(
-      currentUser,
-      dto,
-    );
+    const transaction = await this.transactionsService.create(currentUser, dto);
 
     return this.toResponse(transaction);
   }
@@ -105,6 +102,9 @@ export class TransactionsController {
       attachment_url: transaction.attachmentUrl,
       status: transaction.status,
       correction_of_id: transaction.correctionOfId,
+      source: transaction.source,
+      debt_id: transaction.debtId,
+      debt_payment_id: transaction.debtPaymentId,
     };
   }
 }

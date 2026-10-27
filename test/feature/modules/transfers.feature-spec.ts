@@ -1,7 +1,16 @@
 import { randomUUID } from 'node:crypto';
-import { authed, createAdmin, createMember, type Actor } from '../support/actors';
+import {
+  authed,
+  createAdmin,
+  createMember,
+  type Actor,
+} from '../support/actors';
 import { createWallet, getWalletBalance, TODAY } from '../support/builders';
-import { closeTestApp, createTestApp, type TestContext } from '../support/test-app';
+import {
+  closeTestApp,
+  createTestApp,
+  type TestContext,
+} from '../support/test-app';
 
 describe('Transfers (feature)', () => {
   let ctx: TestContext;
@@ -27,9 +36,19 @@ describe('Transfers (feature)', () => {
 
   describe('POST /transfers', () => {
     it('moves money between wallets of the same household', async () => {
-      const from = await createWallet(ctx, admin, { name: 'Asal', initial_balance: 100_000 });
-      const to = await createWallet(ctx, admin, { name: 'Tujuan', initial_balance: 10_000 });
-      const res = await transfer(admin, { from_wallet_id: from.id, to_wallet_id: to.id, amount: 40_000 });
+      const from = await createWallet(ctx, admin, {
+        name: 'Asal',
+        initial_balance: 100_000,
+      });
+      const to = await createWallet(ctx, admin, {
+        name: 'Tujuan',
+        initial_balance: 10_000,
+      });
+      const res = await transfer(admin, {
+        from_wallet_id: from.id,
+        to_wallet_id: to.id,
+        amount: 40_000,
+      });
 
       expect(res.status).toBe(201);
       expect(res.body.data).toMatchObject({
@@ -45,19 +64,35 @@ describe('Transfers (feature)', () => {
     });
 
     it('charges the fee to the source wallet only', async () => {
-      const from = await createWallet(ctx, admin, { name: 'Asal', initial_balance: 100_000 });
-      const to = await createWallet(ctx, admin, { name: 'Tujuan', initial_balance: 0 });
+      const from = await createWallet(ctx, admin, {
+        name: 'Asal',
+        initial_balance: 100_000,
+      });
+      const to = await createWallet(ctx, admin, {
+        name: 'Tujuan',
+        initial_balance: 0,
+      });
 
-      await transfer(admin, { from_wallet_id: from.id, to_wallet_id: to.id, amount: 40_000, fee: 2_500 })
-        .expect(201);
+      await transfer(admin, {
+        from_wallet_id: from.id,
+        to_wallet_id: to.id,
+        amount: 40_000,
+        fee: 2_500,
+      }).expect(201);
 
       expect(await getWalletBalance(ctx, admin, from.id)).toBe(57_500);
       expect(await getWalletBalance(ctx, admin, to.id)).toBe(40_000);
     });
 
     it('rejects when amount plus fee exceeds the balance with 409', async () => {
-      const from = await createWallet(ctx, admin, { name: 'Asal', initial_balance: 10_000 });
-      const to = await createWallet(ctx, admin, { name: 'Tujuan', initial_balance: 0 });
+      const from = await createWallet(ctx, admin, {
+        name: 'Asal',
+        initial_balance: 10_000,
+      });
+      const to = await createWallet(ctx, admin, {
+        name: 'Tujuan',
+        initial_balance: 0,
+      });
       const res = await transfer(admin, {
         from_wallet_id: from.id,
         to_wallet_id: to.id,
@@ -117,9 +152,19 @@ describe('Transfers (feature)', () => {
     });
 
     it('lets a member transfer between household wallets', async () => {
-      const from = await createWallet(ctx, admin, { name: 'Asal', initial_balance: 50_000 });
-      const to = await createWallet(ctx, admin, { name: 'Tujuan', initial_balance: 0 });
-      const res = await transfer(member, { from_wallet_id: from.id, to_wallet_id: to.id, amount: 5_000 });
+      const from = await createWallet(ctx, admin, {
+        name: 'Asal',
+        initial_balance: 50_000,
+      });
+      const to = await createWallet(ctx, admin, {
+        name: 'Tujuan',
+        initial_balance: 0,
+      });
+      const res = await transfer(member, {
+        from_wallet_id: from.id,
+        to_wallet_id: to.id,
+        amount: 5_000,
+      });
 
       expect(res.status).toBe(201);
     });
@@ -156,11 +201,21 @@ describe('Transfers (feature)', () => {
 
   describe('GET /transfers', () => {
     it('lists transfers touching accessible wallets only', async () => {
-      const from = await createWallet(ctx, admin, { name: 'Asal', initial_balance: 100_000 });
+      const from = await createWallet(ctx, admin, {
+        name: 'Asal',
+        initial_balance: 100_000,
+      });
       const to = await createWallet(ctx, admin, { name: 'Tujuan' });
-      const foreignFrom = await createWallet(ctx, outsider, { name: 'A', initial_balance: 100_000 });
+      const foreignFrom = await createWallet(ctx, outsider, {
+        name: 'A',
+        initial_balance: 100_000,
+      });
       const foreignTo = await createWallet(ctx, outsider, { name: 'B' });
-      const mine = await transfer(admin, { from_wallet_id: from.id, to_wallet_id: to.id, amount: 1_000 });
+      const mine = await transfer(admin, {
+        from_wallet_id: from.id,
+        to_wallet_id: to.id,
+        amount: 1_000,
+      });
       const theirs = await transfer(outsider, {
         from_wallet_id: foreignFrom.id,
         to_wallet_id: foreignTo.id,
@@ -178,21 +233,36 @@ describe('Transfers (feature)', () => {
     });
 
     it('filters by wallet_id', async () => {
-      const a = await createWallet(ctx, admin, { name: 'A', initial_balance: 100_000 });
+      const a = await createWallet(ctx, admin, {
+        name: 'A',
+        initial_balance: 100_000,
+      });
       const b = await createWallet(ctx, admin, { name: 'B' });
       const c = await createWallet(ctx, admin, { name: 'C' });
-      const ab = await transfer(admin, { from_wallet_id: a.id, to_wallet_id: b.id, amount: 1_000 });
+      const ab = await transfer(admin, {
+        from_wallet_id: a.id,
+        to_wallet_id: b.id,
+        amount: 1_000,
+      });
 
-      await transfer(admin, { from_wallet_id: a.id, to_wallet_id: c.id, amount: 1_000 }).expect(201);
+      await transfer(admin, {
+        from_wallet_id: a.id,
+        to_wallet_id: c.id,
+        amount: 1_000,
+      }).expect(201);
 
       const res = await authed(ctx, admin).get(`/transfers?wallet_id=${b.id}`);
 
-      expect(res.body.data.map((t: { id: string }) => t.id)).toEqual([ab.body.data.id]);
+      expect(res.body.data.map((t: { id: string }) => t.id)).toEqual([
+        ab.body.data.id,
+      ]);
     });
 
     it('forbids filtering by a wallet of another household with 403', async () => {
       const wallet = await createWallet(ctx, admin);
-      const res = await authed(ctx, outsider).get(`/transfers?wallet_id=${wallet.id}`);
+      const res = await authed(ctx, outsider).get(
+        `/transfers?wallet_id=${wallet.id}`,
+      );
 
       expect(res.status).toBe(403);
     });
@@ -206,8 +276,14 @@ describe('Transfers (feature)', () => {
 
   describe('POST /transfers/:id/void', () => {
     it('voids a transfer and restores both balances', async () => {
-      const from = await createWallet(ctx, admin, { name: 'Asal', initial_balance: 100_000 });
-      const to = await createWallet(ctx, admin, { name: 'Tujuan', initial_balance: 0 });
+      const from = await createWallet(ctx, admin, {
+        name: 'Asal',
+        initial_balance: 100_000,
+      });
+      const to = await createWallet(ctx, admin, {
+        name: 'Tujuan',
+        initial_balance: 0,
+      });
       const created = await transfer(admin, {
         from_wallet_id: from.id,
         to_wallet_id: to.id,
@@ -215,7 +291,9 @@ describe('Transfers (feature)', () => {
         fee: 1_000,
       });
 
-      const res = await authed(ctx, admin).post(`/transfers/${created.body.data.id}/void`);
+      const res = await authed(ctx, admin).post(
+        `/transfers/${created.body.data.id}/void`,
+      );
 
       expect(res.status).toBe(200);
       expect(res.body.data.status).toBe('void');
@@ -224,28 +302,50 @@ describe('Transfers (feature)', () => {
     });
 
     it('rejects voiding twice with 409', async () => {
-      const from = await createWallet(ctx, admin, { name: 'Asal', initial_balance: 10_000 });
+      const from = await createWallet(ctx, admin, {
+        name: 'Asal',
+        initial_balance: 10_000,
+      });
       const to = await createWallet(ctx, admin, { name: 'Tujuan' });
-      const created = await transfer(admin, { from_wallet_id: from.id, to_wallet_id: to.id, amount: 1_000 });
+      const created = await transfer(admin, {
+        from_wallet_id: from.id,
+        to_wallet_id: to.id,
+        amount: 1_000,
+      });
 
-      await authed(ctx, admin).post(`/transfers/${created.body.data.id}/void`).expect(200);
+      await authed(ctx, admin)
+        .post(`/transfers/${created.body.data.id}/void`)
+        .expect(200);
 
-      const res = await authed(ctx, admin).post(`/transfers/${created.body.data.id}/void`);
+      const res = await authed(ctx, admin).post(
+        `/transfers/${created.body.data.id}/void`,
+      );
 
       expect(res.status).toBe(409);
     });
 
     it('returns 404 for an unknown transfer', async () => {
-      const res = await authed(ctx, admin).post(`/transfers/${randomUUID()}/void`);
+      const res = await authed(ctx, admin).post(
+        `/transfers/${randomUUID()}/void`,
+      );
 
       expect(res.status).toBe(404);
     });
 
     it('forbids another household with 403', async () => {
-      const from = await createWallet(ctx, admin, { name: 'Asal', initial_balance: 10_000 });
+      const from = await createWallet(ctx, admin, {
+        name: 'Asal',
+        initial_balance: 10_000,
+      });
       const to = await createWallet(ctx, admin, { name: 'Tujuan' });
-      const created = await transfer(admin, { from_wallet_id: from.id, to_wallet_id: to.id, amount: 1_000 });
-      const res = await authed(ctx, outsider).post(`/transfers/${created.body.data.id}/void`);
+      const created = await transfer(admin, {
+        from_wallet_id: from.id,
+        to_wallet_id: to.id,
+        amount: 1_000,
+      });
+      const res = await authed(ctx, outsider).post(
+        `/transfers/${created.body.data.id}/void`,
+      );
 
       expect(res.status).toBe(403);
     });

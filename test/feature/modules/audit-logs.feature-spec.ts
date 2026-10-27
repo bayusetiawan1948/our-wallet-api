@@ -1,6 +1,21 @@
-import { authed, createAdmin, createMember, registerActor, type Actor } from '../support/actors';
-import { createCategory, createTransaction, createWallet, TODAY } from '../support/builders';
-import { closeTestApp, createTestApp, type TestContext } from '../support/test-app';
+import {
+  authed,
+  createAdmin,
+  createMember,
+  registerActor,
+  type Actor,
+} from '../support/actors';
+import {
+  createCategory,
+  createTransaction,
+  createWallet,
+  TODAY,
+} from '../support/builders';
+import {
+  closeTestApp,
+  createTestApp,
+  type TestContext,
+} from '../support/test-app';
 
 interface LogEntry {
   id: string;
@@ -63,7 +78,10 @@ describe('Audit logs (feature)', () => {
   describe('what gets recorded', () => {
     it('records wallet, category and transaction mutations with the actor and entity', async () => {
       const wallet = await createWallet(ctx, admin, { name: 'Dilog' });
-      const category = await createCategory(ctx, admin, { name: 'Dilog', type: 'both' });
+      const category = await createCategory(ctx, admin, {
+        name: 'Dilog',
+        type: 'both',
+      });
       const tx = await createTransaction(ctx, member, wallet.id, category.id);
 
       await authed(ctx, member).post(`/transactions/${tx.id}/void`).expect(200);
@@ -84,7 +102,9 @@ describe('Audit logs (feature)', () => {
         actor_id: member.id,
         entity_type: 'TRANSACTIONS',
       });
-      expect(find('VOID_TRANSACTION', tx.id)).toMatchObject({ actor_id: member.id });
+      expect(find('VOID_TRANSACTION', tx.id)).toMatchObject({
+        actor_id: member.id,
+      });
     });
 
     it('records debt creation', async () => {
@@ -93,6 +113,7 @@ describe('Audit logs (feature)', () => {
         type: 'utang',
         counterparty: 'Bank',
         principal: 1_000,
+        is_opening: true,
       });
       const entry = (await logs(admin)).find(
         (l) => l.action === 'CREATE_DEBT' && l.entity_id === res.body.data.id,
@@ -102,7 +123,10 @@ describe('Audit logs (feature)', () => {
     });
 
     it('records deletions', async () => {
-      const wallet = await createWallet(ctx, admin, { name: 'Dihapus', initial_balance: 0 });
+      const wallet = await createWallet(ctx, admin, {
+        name: 'Dihapus',
+        initial_balance: 0,
+      });
 
       await authed(ctx, admin).delete(`/wallets/${wallet.id}`).expect(200);
 
@@ -115,17 +139,24 @@ describe('Audit logs (feature)', () => {
 
     it('records corrections', async () => {
       const wallet = await createWallet(ctx, admin, { name: 'Koreksi' });
-      const category = await createCategory(ctx, admin, { name: 'Koreksi', type: 'both' });
-      const tx = await createTransaction(ctx, admin, wallet.id, category.id);
-      const corrected = await authed(ctx, admin).post(`/transactions/${tx.id}/correct`).send({
-        wallet_id: wallet.id,
-        category_id: category.id,
-        type: 'expense',
-        amount: 5_000,
-        date: TODAY,
+      const category = await createCategory(ctx, admin, {
+        name: 'Koreksi',
+        type: 'both',
       });
+      const tx = await createTransaction(ctx, admin, wallet.id, category.id);
+      const corrected = await authed(ctx, admin)
+        .post(`/transactions/${tx.id}/correct`)
+        .send({
+          wallet_id: wallet.id,
+          category_id: category.id,
+          type: 'expense',
+          amount: 5_000,
+          date: TODAY,
+        });
       const entry = (await logs(admin)).find(
-        (l) => l.action === 'CORRECT_TRANSACTION' && l.entity_id === corrected.body.data.id,
+        (l) =>
+          l.action === 'CORRECT_TRANSACTION' &&
+          l.entity_id === corrected.body.data.id,
       );
 
       expect(entry).toBeDefined();
@@ -152,7 +183,9 @@ describe('Audit logs (feature)', () => {
     });
 
     it('does not expose the log of another household', async () => {
-      const foreignWallet = await createWallet(ctx, outsider, { name: 'Rahasia Asing' });
+      const foreignWallet = await createWallet(ctx, outsider, {
+        name: 'Rahasia Asing',
+      });
       const mine = await logs(admin);
 
       expect(mine.map((l) => l.entity_id)).not.toContain(foreignWallet.id);

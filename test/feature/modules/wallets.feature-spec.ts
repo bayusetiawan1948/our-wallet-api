@@ -1,7 +1,21 @@
 import { randomUUID } from 'node:crypto';
-import { authed, createAdmin, createMember, registerActor, type Actor } from '../support/actors';
-import { createCategory, createTransaction, createWallet } from '../support/builders';
-import { closeTestApp, createTestApp, type TestContext } from '../support/test-app';
+import {
+  authed,
+  createAdmin,
+  createMember,
+  registerActor,
+  type Actor,
+} from '../support/actors';
+import {
+  createCategory,
+  createTransaction,
+  createWallet,
+} from '../support/builders';
+import {
+  closeTestApp,
+  createTestApp,
+  type TestContext,
+} from '../support/test-app';
 
 describe('Wallets (feature)', () => {
   let ctx: TestContext;
@@ -84,8 +98,24 @@ describe('Wallets (feature)', () => {
       ['missing name', { owner_type: 'household', type: 'bank' }],
       ['invalid type', { owner_type: 'household', name: 'X', type: 'crypto' }],
       ['invalid owner_type', { owner_type: 'alien', name: 'X', type: 'bank' }],
-      ['negative initial balance', { owner_type: 'household', name: 'X', type: 'bank', initial_balance: -1 }],
-      ['non-numeric initial balance', { owner_type: 'household', name: 'X', type: 'bank', initial_balance: 'banyak' }],
+      [
+        'negative initial balance',
+        {
+          owner_type: 'household',
+          name: 'X',
+          type: 'bank',
+          initial_balance: -1,
+        },
+      ],
+      [
+        'non-numeric initial balance',
+        {
+          owner_type: 'household',
+          name: 'X',
+          type: 'bank',
+          initial_balance: 'banyak',
+        },
+      ],
     ])('rejects %s with 400', async (_label, body) => {
       const res = await authed(ctx, admin).post('/wallets').send(body);
 
@@ -106,14 +136,18 @@ describe('Wallets (feature)', () => {
       const res = await authed(ctx, member).get('/wallets');
 
       expect(res.status).toBe(200);
-      expect(res.body.data.map((w: { id: string }) => w.id)).toContain(wallet.id);
+      expect(res.body.data.map((w: { id: string }) => w.id)).toContain(
+        wallet.id,
+      );
     });
 
     it('does not leak wallets across households', async () => {
       const wallet = await createWallet(ctx, admin, { name: 'Privat Admin' });
       const list = await authed(ctx, outsider).get('/wallets');
 
-      expect(list.body.data.map((w: { id: string }) => w.id)).not.toContain(wallet.id);
+      expect(list.body.data.map((w: { id: string }) => w.id)).not.toContain(
+        wallet.id,
+      );
 
       const detail = await authed(ctx, outsider).get(`/wallets/${wallet.id}`);
 
@@ -121,10 +155,15 @@ describe('Wallets (feature)', () => {
     });
 
     it('does not show a personal wallet to a member without access', async () => {
-      const personal = await createWallet(ctx, admin, { owner_type: 'user', name: 'Rahasia' });
+      const personal = await createWallet(ctx, admin, {
+        owner_type: 'user',
+        name: 'Rahasia',
+      });
       const list = await authed(ctx, member).get('/wallets');
 
-      expect(list.body.data.map((w: { id: string }) => w.id)).not.toContain(personal.id);
+      expect(list.body.data.map((w: { id: string }) => w.id)).not.toContain(
+        personal.id,
+      );
 
       const detail = await authed(ctx, member).get(`/wallets/${personal.id}`);
 
@@ -155,7 +194,9 @@ describe('Wallets (feature)', () => {
   describe('PATCH /wallets/:id', () => {
     it('lets an admin rename a wallet', async () => {
       const wallet = await createWallet(ctx, admin, { name: 'Lama' });
-      const res = await authed(ctx, admin).patch(`/wallets/${wallet.id}`).send({ name: 'Baru' });
+      const res = await authed(ctx, admin)
+        .patch(`/wallets/${wallet.id}`)
+        .send({ name: 'Baru' });
 
       expect(res.status).toBe(200);
       expect(res.body.data.name).toBe('Baru');
@@ -163,7 +204,9 @@ describe('Wallets (feature)', () => {
 
     it('forbids a member who is not the owner of a household wallet', async () => {
       const wallet = await createWallet(ctx, admin);
-      const res = await authed(ctx, member).patch(`/wallets/${wallet.id}`).send({ name: 'Hack' });
+      const res = await authed(ctx, member)
+        .patch(`/wallets/${wallet.id}`)
+        .send({ name: 'Hack' });
 
       expect(res.status).toBe(403);
     });
@@ -184,14 +227,18 @@ describe('Wallets (feature)', () => {
 
     it('rejects an invalid type with 400', async () => {
       const wallet = await createWallet(ctx, admin);
-      const res = await authed(ctx, admin).patch(`/wallets/${wallet.id}`).send({ type: 'crypto' });
+      const res = await authed(ctx, admin)
+        .patch(`/wallets/${wallet.id}`)
+        .send({ type: 'crypto' });
 
       expect(res.status).toBe(400);
     });
 
     it('forbids another household', async () => {
       const wallet = await createWallet(ctx, admin);
-      const res = await authed(ctx, outsider).patch(`/wallets/${wallet.id}`).send({ name: 'Hack' });
+      const res = await authed(ctx, outsider)
+        .patch(`/wallets/${wallet.id}`)
+        .send({ name: 'Hack' });
 
       expect(res.status).toBe(403);
     });
@@ -210,7 +257,9 @@ describe('Wallets (feature)', () => {
     });
 
     it('refuses to delete a wallet that has money movement with 409', async () => {
-      const wallet = await createWallet(ctx, admin, { initial_balance: 100_000 });
+      const wallet = await createWallet(ctx, admin, {
+        initial_balance: 100_000,
+      });
       const res = await authed(ctx, admin).delete(`/wallets/${wallet.id}`);
 
       expect(res.status).toBe(409);
@@ -226,7 +275,10 @@ describe('Wallets (feature)', () => {
 
   describe('wallet access', () => {
     it('grants and revokes access to a personal wallet', async () => {
-      const personal = await createWallet(ctx, admin, { owner_type: 'user', name: 'Shared' });
+      const personal = await createWallet(ctx, admin, {
+        owner_type: 'user',
+        name: 'Shared',
+      });
 
       const grant = await authed(ctx, admin)
         .post(`/wallets/${personal.id}/access`)
@@ -238,7 +290,9 @@ describe('Wallets (feature)', () => {
 
       expect(visible.status).toBe(200);
 
-      const revoke = await authed(ctx, admin).delete(`/wallets/${personal.id}/access/${member.id}`);
+      const revoke = await authed(ctx, admin).delete(
+        `/wallets/${personal.id}/access/${member.id}`,
+      );
 
       expect(revoke.status).toBe(200);
 
@@ -248,7 +302,10 @@ describe('Wallets (feature)', () => {
     });
 
     it('rejects granting access twice with 409', async () => {
-      const personal = await createWallet(ctx, admin, { owner_type: 'user', name: 'Twice' });
+      const personal = await createWallet(ctx, admin, {
+        owner_type: 'user',
+        name: 'Twice',
+      });
 
       await authed(ctx, admin)
         .post(`/wallets/${personal.id}/access`)
@@ -283,7 +340,9 @@ describe('Wallets (feature)', () => {
 
   describe('reconciliations and snapshots', () => {
     it('records a reconciliation with the recorded and actual balance', async () => {
-      const wallet = await createWallet(ctx, admin, { initial_balance: 300_000 });
+      const wallet = await createWallet(ctx, admin, {
+        initial_balance: 300_000,
+      });
       const res = await authed(ctx, admin)
         .post(`/wallets/${wallet.id}/reconciliations`)
         .send({ actual_balance: 250_000 });
@@ -295,7 +354,9 @@ describe('Wallets (feature)', () => {
         actual_balance: 250_000,
       });
 
-      const list = await authed(ctx, member).get(`/wallets/${wallet.id}/reconciliations`);
+      const list = await authed(ctx, member).get(
+        `/wallets/${wallet.id}/reconciliations`,
+      );
 
       expect(list.status).toBe(200);
       expect(list.body.data).toHaveLength(1);
@@ -321,7 +382,9 @@ describe('Wallets (feature)', () => {
 
     it('lists snapshots as an array', async () => {
       const wallet = await createWallet(ctx, admin);
-      const res = await authed(ctx, admin).get(`/wallets/${wallet.id}/snapshots`);
+      const res = await authed(ctx, admin).get(
+        `/wallets/${wallet.id}/snapshots`,
+      );
 
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body.data)).toBe(true);
@@ -330,9 +393,16 @@ describe('Wallets (feature)', () => {
 
   describe('balance', () => {
     it('reflects active transactions only', async () => {
-      const wallet = await createWallet(ctx, admin, { initial_balance: 100_000 });
-      const category = await createCategory(ctx, admin, { name: 'Saldo', type: 'both' });
-      const tx = await createTransaction(ctx, admin, wallet.id, category.id, { amount: 40_000 });
+      const wallet = await createWallet(ctx, admin, {
+        initial_balance: 100_000,
+      });
+      const category = await createCategory(ctx, admin, {
+        name: 'Saldo',
+        type: 'both',
+      });
+      const tx = await createTransaction(ctx, admin, wallet.id, category.id, {
+        amount: 40_000,
+      });
 
       let res = await authed(ctx, admin).get(`/wallets/${wallet.id}`);
 

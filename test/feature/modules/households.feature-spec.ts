@@ -1,7 +1,17 @@
 import { randomUUID } from 'node:crypto';
-import { authed, createAdmin, createMember, refreshActor, registerActor } from '../support/actors';
+import {
+  authed,
+  createAdmin,
+  createMember,
+  refreshActor,
+  registerActor,
+} from '../support/actors';
 import { execSql } from '../support/db';
-import { closeTestApp, createTestApp, type TestContext } from '../support/test-app';
+import {
+  closeTestApp,
+  createTestApp,
+  type TestContext,
+} from '../support/test-app';
 
 describe('Households (feature)', () => {
   let ctx: TestContext;
@@ -17,7 +27,9 @@ describe('Households (feature)', () => {
   describe('POST /households', () => {
     it('creates a household and makes the creator its admin', async () => {
       const user = await registerActor(ctx);
-      const res = await authed(ctx, user).post('/households').send({ name: 'Keluarga Budi' });
+      const res = await authed(ctx, user)
+        .post('/households')
+        .send({ name: 'Keluarga Budi' });
 
       expect(res.status).toBe(201);
       expect(res.body.data).toMatchObject({ name: 'Keluarga Budi' });
@@ -30,14 +42,18 @@ describe('Households (feature)', () => {
 
     it('rejects a second household for a user who already has one with 409', async () => {
       const admin = await createAdmin(ctx);
-      const res = await authed(ctx, admin).post('/households').send({ name: 'Kedua' });
+      const res = await authed(ctx, admin)
+        .post('/households')
+        .send({ name: 'Kedua' });
 
       expect(res.status).toBe(409);
     });
 
     it('rejects an empty name with 400', async () => {
       const user = await registerActor(ctx);
-      const res = await authed(ctx, user).post('/households').send({ name: '' });
+      const res = await authed(ctx, user)
+        .post('/households')
+        .send({ name: '' });
 
       expect(res.status).toBe(400);
     });
@@ -92,12 +108,12 @@ describe('Households (feature)', () => {
       const res = await authed(ctx, member).get('/households/members');
 
       expect(res.status).toBe(200);
-      expect(res.body.data.map((m: { user_id: string }) => m.user_id).sort()).toEqual(
-        [admin.id, member.id].sort(),
-      );
-      expect(res.body.data.map((m: { user_id: string }) => m.user_id)).not.toContain(
-        otherAdmin.id,
-      );
+      expect(
+        res.body.data.map((m: { user_id: string }) => m.user_id).sort(),
+      ).toEqual([admin.id, member.id].sort());
+      expect(
+        res.body.data.map((m: { user_id: string }) => m.user_id),
+      ).not.toContain(otherAdmin.id);
     });
 
     it('returns 403 for a user without a household', async () => {
@@ -155,9 +171,14 @@ describe('Households (feature)', () => {
       const invite = await authed(ctx, admin).post('/households/invites');
       const code = invite.body.data.code;
 
-      await authed(ctx, first).post('/households/invites/accept').send({ code }).expect(200);
+      await authed(ctx, first)
+        .post('/households/invites/accept')
+        .send({ code })
+        .expect(200);
 
-      const res = await authed(ctx, second).post('/households/invites/accept').send({ code });
+      const res = await authed(ctx, second)
+        .post('/households/invites/accept')
+        .send({ code });
 
       expect(res.status).toBe(404);
     });
@@ -182,7 +203,9 @@ describe('Households (feature)', () => {
         [code],
       );
 
-      const res = await authed(ctx, invitee).post('/households/invites/accept').send({ code });
+      const res = await authed(ctx, invitee)
+        .post('/households/invites/accept')
+        .send({ code });
 
       expect(res.status).toBe(409);
     });
@@ -201,7 +224,9 @@ describe('Households (feature)', () => {
 
     it('rejects a missing code with 400', async () => {
       const user = await registerActor(ctx);
-      const res = await authed(ctx, user).post('/households/invites/accept').send({});
+      const res = await authed(ctx, user)
+        .post('/households/invites/accept')
+        .send({});
 
       expect(res.status).toBe(400);
     });
@@ -291,18 +316,24 @@ describe('Households (feature)', () => {
       const admin = await createAdmin(ctx);
       const member = await createMember(ctx, admin);
 
-      const res = await authed(ctx, admin).delete(`/households/members/${member.id}`);
+      const res = await authed(ctx, admin).delete(
+        `/households/members/${member.id}`,
+      );
 
       expect(res.status).toBe(200);
 
       const members = await authed(ctx, admin).get('/households/members');
 
-      expect(members.body.data.map((m: { user_id: string }) => m.user_id)).toEqual([admin.id]);
+      expect(
+        members.body.data.map((m: { user_id: string }) => m.user_id),
+      ).toEqual([admin.id]);
     });
 
     it('forbids an admin from removing themselves', async () => {
       const admin = await createAdmin(ctx);
-      const res = await authed(ctx, admin).delete(`/households/members/${admin.id}`);
+      const res = await authed(ctx, admin).delete(
+        `/households/members/${admin.id}`,
+      );
 
       expect(res.status).toBe(403);
     });
@@ -310,7 +341,9 @@ describe('Households (feature)', () => {
     it('forbids a member from removing anyone', async () => {
       const admin = await createAdmin(ctx);
       const member = await createMember(ctx, admin);
-      const res = await authed(ctx, member).delete(`/households/members/${admin.id}`);
+      const res = await authed(ctx, member).delete(
+        `/households/members/${admin.id}`,
+      );
 
       expect(res.status).toBe(403);
     });
@@ -319,7 +352,9 @@ describe('Households (feature)', () => {
       const admin = await createAdmin(ctx);
       const otherAdmin = await createAdmin(ctx, 'Other Admin');
       const otherMember = await createMember(ctx, otherAdmin, 'Other Member');
-      const res = await authed(ctx, admin).delete(`/households/members/${otherMember.id}`);
+      const res = await authed(ctx, admin).delete(
+        `/households/members/${otherMember.id}`,
+      );
 
       expect(res.status).toBe(404);
     });

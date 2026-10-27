@@ -31,7 +31,9 @@ export async function createTestApp(): Promise<TestContext> {
   return { app, http: request(app.getHttpServer()) };
 }
 
-export async function closeTestApp(ctx: TestContext | undefined): Promise<void> {
+export async function closeTestApp(
+  ctx: TestContext | undefined,
+): Promise<void> {
   await ctx?.app.close();
   await closeTestDb();
 }

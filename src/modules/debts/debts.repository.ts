@@ -3,17 +3,151 @@ import { and, eq, or } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DATABASE } from '../../shared/database/database.provider';
 import {
+  categories,
   Debt,
   DebtPayment,
   debtPayments,
   debts,
   NewDebt,
   NewDebtPayment,
+  NewTransaction,
+  transactions,
 } from '../../shared/database/schema';
+
+export const DEBT_CATEGORY_NAME = 'Utang/Piutang';
+
+type Tx = Parameters<Parameters<NodePgDatabase['transaction']>[0]>[0];
+
+// Membangun entri transaksi dari record yang baru tersimpan di dalam DB transaction yang sama.
+export type LedgerEntryBuilder<T> = (
+  record: T,
+  categoryId: string,
+) => NewTransaction[];
 
 @Injectable()
 export class DebtsRepository {
   constructor(@Inject(DATABASE) private readonly db: NodePgDatabase) {}
+
+  private async ensureDebtCategory(
+    tx: Tx,
+    householdId: string,
+  ): Promise<string> {
+    const [existing] = await tx
+      .select({ id: categories.id })
+      .from(categories)
+      .where(
+        and(
+          eq(categories.householdId, householdId),
+          eq(categories.name, DEBT_CATEGORY_NAME),
+          eq(categories.isSystem, true),
+        ),
+      )
+      .limit(1);
+
+    if (existing) {
+      return existing.id;
+    }
+
+    const [created] = await tx
+      .insert(categories)
+      .values({
+        householdId,
+        name: DEBT_CATEGORY_NAME,
+        type: 'both',
+        isSystem: true,
+        isHidden: true,
+      })
+      .returning({ id: categories.id });
+
+    return created.id;
+  }
+
+  private async insertEntries(
+    tx: Tx,
+    entries: NewTransaction[],
+  ): Promise<void> {
+    if (entries.length > 0) {
+      await tx.insert(transactions).values(entries);
+    }
+  }
+
+  async CreateDebtWithEntries(
+    householdId: string,
+    data: NewDebt,
+    buildEntries: LedgerEntryBuilder<Debt>,
+  ): Promise<Debt> {
+    return this.db.transaction(async (tx) => {
+      const [created] = await tx.insert(debts).values(data).returning();
+      const categoryId = await this.ensureDebtCategory(tx, householdId);
+
+      await this.insertEntries(tx, buildEntries(created, categoryId));
+
+      return created;
+    });
+  }
+
+  async UpdateDebtWithEntries(
+    householdId: string,
+    id: string,
+    data: Partial<NewDebt>,
+    buildEntries: LedgerEntryBuilder<Debt>,
+  ): Promise<Debt | undefined> {
+    return this.db.transaction(async (tx) => {
+      const [updated] =
+        Object.keys(data).length > 0
+          ? await tx.update(debts).set(data).where(eq(debts.id, id)).returning()
+          : await tx.select().from(debts).where(eq(debts.id, id)).limit(1);
+
+      if (!updated) {
+        return undefined;
+      }
+
+      const categoryId = await this.ensureDebtCategory(tx, householdId);
+
+      await this.insertEntries(tx, buildEntries(updated, categoryId));
+
+      return updated;
+    });
+  }
+
+  async CreatePaymentWithEntry(
+    householdId: string,
+    data: NewDebtPayment,
+    buildEntries: LedgerEntryBuilder<DebtPayment>,
+  ): Promise<DebtPayment> {
+    return this.db.transaction(async (tx) => {
+      const [created] = await tx.insert(debtPayments).values(data).returning();
+      const categoryId = await this.ensureDebtCategory(tx, householdId);
+
+      await this.insertEntries(tx, buildEntries(created, categoryId));
+
+      return created;
+    });
+  }
+
+  async VoidPaymentWithEntry(
+    householdId: string,
+    paymentId: string,
+    buildEntries: LedgerEntryBuilder<DebtPayment>,
+  ): Promise<DebtPayment | undefined> {
+    return this.db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(debtPayments)
+        .set({ status: 'void' })
+        .where(eq(debtPayments.id, paymentId))
+        .returning();
+
+      if (!updated) {
+        return undefined;
+      }
+
+      const categoryId = await this.ensureDebtCategory(tx, householdId);
+
+      await this.insertEntries(tx, buildEntries(updated, categoryId));
+
+      return updated;
+    });
+  }
 
   async CreateDebt(data: NewDebt): Promise<Debt> {
     const [created] = await this.db.insert(debts).values(data).returning();
