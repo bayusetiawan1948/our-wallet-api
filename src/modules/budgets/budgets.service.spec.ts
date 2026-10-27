@@ -21,7 +21,11 @@ describe('BudgetsService', () => {
     deviceId: 'device-1',
   };
 
-  const member: AuthenticatedUser = { ...admin, userId: 'user-2', role: 'member' };
+  const member: AuthenticatedUser = {
+    ...admin,
+    userId: 'user-2',
+    role: 'member',
+  };
 
   const budget: Budget = {
     id: 'budget-1',

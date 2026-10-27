@@ -1,4 +1,11 @@
-import { IsBoolean, IsIn, IsOptional, IsString, IsUUID, Length } from 'class-validator';
+import {
+  IsBoolean,
+  IsIn,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Length,
+} from 'class-validator';
 
 export class UpdateCategoryDto {
   @IsOptional()
@@ -16,7 +23,9 @@ export class UpdateCategoryDto {
 
   @IsOptional()
   @IsString({ message: 'icon must be a string' })
-  @Length(1, 100, { message: 'icon length must be between 1 and 100 characters' })
+  @Length(1, 100, {
+    message: 'icon length must be between 1 and 100 characters',
+  })
   icon?: string;
 
   @IsOptional()

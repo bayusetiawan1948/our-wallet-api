@@ -1,4 +1,8 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { AuthenticatedUser } from '../../common/types/jwt-payload.type';
 import {
   BudgetEncroachment,
@@ -25,7 +29,10 @@ export class GoalsService {
     private readonly reservationsService: ReservationsService,
   ) {}
 
-  async create(currentUser: AuthenticatedUser, dto: CreateGoalDto): Promise<Goal> {
+  async create(
+    currentUser: AuthenticatedUser,
+    dto: CreateGoalDto,
+  ): Promise<Goal> {
     if (dto.owner_type === 'household' && currentUser.role !== 'admin') {
       throw new ForbiddenException(
         'Only household admin can create a household-owned goal',
@@ -120,7 +127,8 @@ export class GoalsService {
       total_reserved: totalReserved,
       progress_percent: progressPercent,
       remaining_amount: Math.max(0, targetAmount - totalReserved),
-      is_completed: totalReserved >= targetAmount || goal.status === 'completed',
+      is_completed:
+        totalReserved >= targetAmount || goal.status === 'completed',
     };
   }
 

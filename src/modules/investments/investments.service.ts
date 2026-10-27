@@ -311,7 +311,8 @@ export class InvestmentsService {
       );
 
       if (transaction.type === 'sell') {
-        const proceeds = Number(transaction.quantity) * Number(transaction.price);
+        const proceeds =
+          Number(transaction.quantity) * Number(transaction.price);
 
         if (wallet.balance < proceeds) {
           throw new ConflictException(
@@ -354,14 +355,10 @@ export class InvestmentsService {
   ): Promise<InvestmentValuation[]> {
     await this.assertAccess(currentUser, investmentId);
 
-    return this.investmentsRepository.ListValuationsByInvestment(
-      investmentId,
-    );
+    return this.investmentsRepository.ListValuationsByInvestment(investmentId);
   }
 
-  private computeQuantityHeld(
-    transactions: InvestmentTransaction[],
-  ): number {
+  private computeQuantityHeld(transactions: InvestmentTransaction[]): number {
     return transactions
       .filter((tx) => tx.status === 'active')
       .reduce((sum, tx) => {
@@ -386,9 +383,7 @@ export class InvestmentsService {
       investment.ownerHouseholdId === currentUser.householdId;
 
     if (!isOwner && !isHouseholdInvestment) {
-      throw new ForbiddenException(
-        'You do not have access to this investment',
-      );
+      throw new ForbiddenException('You do not have access to this investment');
     }
 
     return investment;

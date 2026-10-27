@@ -21,7 +21,9 @@ export class BudgetEncroachmentsRepository {
     return created;
   }
 
-  async ListByTransaction(transactionId: string): Promise<BudgetEncroachment[]> {
+  async ListByTransaction(
+    transactionId: string,
+  ): Promise<BudgetEncroachment[]> {
     return this.db
       .select()
       .from(budgetEncroachments)

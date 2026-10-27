@@ -21,7 +21,11 @@ describe('AuditLogsService', () => {
     deviceId: 'device-1',
   };
 
-  const member: AuthenticatedUser = { ...admin, userId: 'user-2', role: 'member' };
+  const member: AuthenticatedUser = {
+    ...admin,
+    userId: 'user-2',
+    role: 'member',
+  };
 
   const log: AuditLog = {
     id: 'log-1',
@@ -91,15 +95,40 @@ describe('AuditLogsService', () => {
 
     it('lists logs for all household members', async () => {
       householdsService.ListMembers.mockResolvedValue([
-        { userId: 'user-1', householdId: 'household-1', role: 'admin', canEditOthersTransactions: true, user: { id: 'user-1', name: 'Bayu', email: 'a@a.com', baseCurrency: 'IDR' } },
-        { userId: 'user-2', householdId: 'household-1', role: 'member', canEditOthersTransactions: false, user: { id: 'user-2', name: 'Annisa', email: 'b@b.com', baseCurrency: 'IDR' } },
+        {
+          userId: 'user-1',
+          householdId: 'household-1',
+          role: 'admin',
+          canEditOthersTransactions: true,
+          user: {
+            id: 'user-1',
+            name: 'Bayu',
+            email: 'a@a.com',
+            baseCurrency: 'IDR',
+          },
+        },
+        {
+          userId: 'user-2',
+          householdId: 'household-1',
+          role: 'member',
+          canEditOthersTransactions: false,
+          user: {
+            id: 'user-2',
+            name: 'Annisa',
+            email: 'b@b.com',
+            baseCurrency: 'IDR',
+          },
+        },
       ]);
       repository.ListByActorIds.mockResolvedValue([log]);
 
       const result = await service.listForHousehold(admin);
 
       expect(householdsService.ListMembers).toHaveBeenCalledWith(admin);
-      expect(repository.ListByActorIds).toHaveBeenCalledWith(['user-1', 'user-2']);
+      expect(repository.ListByActorIds).toHaveBeenCalledWith([
+        'user-1',
+        'user-2',
+      ]);
       expect(result).toEqual([log]);
     });
   });

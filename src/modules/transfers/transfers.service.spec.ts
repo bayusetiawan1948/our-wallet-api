@@ -196,10 +196,7 @@ describe('TransfersService', () => {
 
       const result = await service.void(admin, transfer.id);
 
-      expect(repository.UpdateStatus).toHaveBeenCalledWith(
-        transfer.id,
-        'void',
-      );
+      expect(repository.UpdateStatus).toHaveBeenCalledWith(transfer.id, 'void');
       expect(result.status).toBe('void');
     });
   });

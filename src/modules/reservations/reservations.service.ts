@@ -77,7 +77,9 @@ export class ReservationsService {
     return this.reservationsRepository.ListByGoal(goalId);
   }
 
-  async listEncroachmentsByBudget(budgetId: string): Promise<BudgetEncroachment[]> {
+  async listEncroachmentsByBudget(
+    budgetId: string,
+  ): Promise<BudgetEncroachment[]> {
     return this.encroachmentsRepository.ListByBudget(budgetId);
   }
 
@@ -101,14 +103,10 @@ export class ReservationsService {
   }
 
   async computeReservedTotal(walletId: string): Promise<number> {
-    const reservations = await this.reservationsRepository.ListByWallet(
-      walletId,
-    );
+    const reservations =
+      await this.reservationsRepository.ListByWallet(walletId);
 
-    return reservations.reduce(
-      (sum, r) => sum + Number(r.reservedAmount),
-      0,
-    );
+    return reservations.reduce((sum, r) => sum + Number(r.reservedAmount), 0);
   }
 
   async computeReservedTotalForWallets(

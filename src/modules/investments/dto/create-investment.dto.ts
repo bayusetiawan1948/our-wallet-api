@@ -1,4 +1,12 @@
-import { IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, Length, Min } from 'class-validator';
+import {
+  IsIn,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Length,
+  Min,
+} from 'class-validator';
 
 const ASSET_TYPES = [
   'emas',
@@ -18,7 +26,9 @@ export class CreateInvestmentDto {
   owner_type!: 'user' | 'household';
 
   @IsNotEmpty({ message: 'asset_type is required' })
-  @IsIn(ASSET_TYPES, { message: `asset_type must be one of ${ASSET_TYPES.join(', ')}` })
+  @IsIn(ASSET_TYPES, {
+    message: `asset_type must be one of ${ASSET_TYPES.join(', ')}`,
+  })
   asset_type!: (typeof ASSET_TYPES)[number];
 
   @IsNotEmpty({ message: 'asset_name is required' })

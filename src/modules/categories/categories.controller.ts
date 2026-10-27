@@ -76,10 +76,7 @@ export class CategoriesController {
     @CurrentUser() currentUser: AuthenticatedUser,
     @Param('id') id: string,
   ) {
-    const category = await this.categoriesService.ToggleStatus(
-      currentUser,
-      id,
-    );
+    const category = await this.categoriesService.ToggleStatus(currentUser, id);
 
     return this.toResponse(category);
   }

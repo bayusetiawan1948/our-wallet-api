@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { AuthenticatedUser } from '../../common/types/jwt-payload.type';
 import { Category } from '../../shared/database/schema';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';

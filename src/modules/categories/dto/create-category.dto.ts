@@ -14,7 +14,9 @@ export class CreateCategoryDto {
 
   @IsOptional()
   @IsString({ message: 'icon must be a string' })
-  @Length(1, 100, { message: 'icon length must be between 1 and 100 characters' })
+  @Length(1, 100, {
+    message: 'icon length must be between 1 and 100 characters',
+  })
   icon?: string;
 
   @IsOptional()

@@ -119,7 +119,10 @@ export class BudgetsService {
     return this.computeProgress(updated);
   }
 
-  async remove(currentUser: AuthenticatedUser, budgetId: string): Promise<void> {
+  async remove(
+    currentUser: AuthenticatedUser,
+    budgetId: string,
+  ): Promise<void> {
     const budget = await this.assertAccess(currentUser, budgetId);
 
     await this.budgetsRepository.Delete(budget.id);

@@ -142,15 +142,10 @@ export class WalletsService {
           ? (data.ownerUserId ?? currentUser.userId)
           : null;
       patch.ownerHouseholdId =
-        data.ownerType === 'household'
-          ? (currentUser.householdId as string)
-          : null;
+        data.ownerType === 'household' ? currentUser.householdId : null;
     }
 
-    const updated = await this.walletsRepository.UpdateWallet(
-      wallet.id,
-      patch,
-    );
+    const updated = await this.walletsRepository.UpdateWallet(wallet.id, patch);
 
     if (!updated) {
       throw new NotFoundException('Wallet not found');
@@ -162,7 +157,10 @@ export class WalletsService {
     };
   }
 
-  async remove(currentUser: AuthenticatedUser, walletId: string): Promise<void> {
+  async remove(
+    currentUser: AuthenticatedUser,
+    walletId: string,
+  ): Promise<void> {
     this.assertIsAdmin(currentUser);
     const wallet = await this.assertCanAccess(currentUser, walletId);
 

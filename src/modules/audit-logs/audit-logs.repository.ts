@@ -2,11 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { desc, eq, inArray } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DATABASE } from '../../shared/database/database.provider';
-import {
-  AuditLog,
-  auditLogs,
-  NewAuditLog,
-} from '../../shared/database/schema';
+import { AuditLog, auditLogs, NewAuditLog } from '../../shared/database/schema';
 
 @Injectable()
 export class AuditLogsRepository {
