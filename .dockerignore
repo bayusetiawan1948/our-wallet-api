@@ -1,0 +1,9 @@
+node_modules
+dist
+coverage-feature
+lcov-report
+.git
+.env
+.env.*
+!.env.example
+*.log
