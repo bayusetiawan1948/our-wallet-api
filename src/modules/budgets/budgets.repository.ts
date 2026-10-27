@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, gte, lte, or, sql } from 'drizzle-orm';
+import { and, eq, gte, isNull, lte, or, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DATABASE } from '../../shared/database/database.provider';
 import {
@@ -61,7 +61,10 @@ export class BudgetsRepository {
       .where(or(...conditions));
   }
 
-  async Update(id: string, data: Partial<NewBudget>): Promise<Budget | undefined> {
+  async Update(
+    id: string,
+    data: Partial<NewBudget>,
+  ): Promise<Budget | undefined> {
     const [updated] = await this.db
       .update(budgets)
       .set(data)
@@ -89,7 +92,10 @@ export class BudgetsRepository {
       .select()
       .from(budgetPeriods)
       .where(
-        and(eq(budgetPeriods.budgetId, budgetId), eq(budgetPeriods.status, 'active')),
+        and(
+          eq(budgetPeriods.budgetId, budgetId),
+          eq(budgetPeriods.status, 'active'),
+        ),
       )
       .limit(1);
 
@@ -125,6 +131,8 @@ export class BudgetsRepository {
           eq(transactions.categoryId, categoryId),
           eq(transactions.type, 'expense'),
           eq(transactions.status, 'active'),
+          // Pergerakan dana utang/piutang bukan pengeluaran anggaran.
+          isNull(transactions.source),
           gte(transactions.date, from),
           lte(transactions.date, to),
         ),
