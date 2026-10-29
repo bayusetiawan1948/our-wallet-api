@@ -11,6 +11,10 @@ import {
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../common/types/jwt-payload.type';
 import { Transaction } from '../../shared/database/schema';
+import {
+  BulkCreateTransactionsDto,
+  CheckDuplicatesDto,
+} from './dto/bulk-create-transactions.dto';
 import { CheckEncroachmentDto } from './dto/check-encroachment.dto';
 import { CorrectTransactionDto } from './dto/correct-transaction.dto';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
@@ -30,6 +34,29 @@ export class TransactionsController {
     const transaction = await this.transactionsService.create(currentUser, dto);
 
     return this.toResponse(transaction);
+  }
+
+  @Post('bulk')
+  @HttpCode(HttpStatus.CREATED)
+  async bulkCreate(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Body() dto: BulkCreateTransactionsDto,
+  ) {
+    return this.transactionsService.bulkCreate(currentUser, dto);
+  }
+
+  @Post('check-duplicates')
+  @HttpCode(HttpStatus.OK)
+  async checkDuplicates(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Body() dto: CheckDuplicatesDto,
+  ) {
+    const duplicateIndexes = await this.transactionsService.checkDuplicates(
+      currentUser,
+      dto,
+    );
+
+    return { duplicate_indexes: duplicateIndexes };
   }
 
   @Get()

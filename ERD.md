@@ -248,7 +248,7 @@ Table transactions {
   recorded_by uuid [not null]
   type transaction_type
   amount decimal
-  date date
+  date datetime
   note text
   attachment_url varchar
   status transaction_status

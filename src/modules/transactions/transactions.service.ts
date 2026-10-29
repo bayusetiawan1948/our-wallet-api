@@ -11,7 +11,12 @@ import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { HouseholdsService } from '../households/households.service';
 import { ReservationsService } from '../reservations/reservations.service';
 import { WalletsService } from '../wallets/wallets.service';
+import {
+  BulkCreateTransactionsDto,
+  CheckDuplicatesDto,
+} from './dto/bulk-create-transactions.dto';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
+import { buildImportHashes } from './transaction-import-hash';
 import {
   TransactionFilter,
   TransactionsRepository,
@@ -113,6 +118,88 @@ export class TransactionsService {
     );
 
     return transaction;
+  }
+
+  // Import massal dari rekening koran/CSV. Ini data historis, jadi sengaja tidak
+  // menjalankan cek saldo wallet dan encroachment seperti create(). Duplikat
+  // (import_hash sudah ada di wallet) dilewati, bukan ditolak.
+  async bulkCreate(
+    currentUser: AuthenticatedUser,
+    dto: BulkCreateTransactionsDto,
+  ): Promise<{ inserted: number; skipped: number }> {
+    const ownerId = await this.resolveOwnerId(currentUser, dto.owner_id);
+    await this.walletsService.getById(currentUser, dto.wallet_id);
+
+    for (const categoryId of new Set(dto.items.map((i) => i.category_id))) {
+      await this.assertCategoryInHousehold(currentUser, categoryId);
+    }
+
+    const ordered = [...dto.items].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+    );
+    const hashes = buildImportHashes(dto.wallet_id, ordered);
+
+    const inserted = await this.transactionsRepository.BulkCreateTransactions(
+      ordered.map((item, index) => ({
+        walletId: dto.wallet_id,
+        categoryId: item.category_id,
+        ownerId,
+        recordedBy: currentUser.userId,
+        type: item.type,
+        amount: item.amount.toString(),
+        date: item.date,
+        note: item.note ?? null,
+        status: 'active' as const,
+        importHash: hashes[index],
+      })),
+    );
+
+    await this.auditLogsService.log(
+      currentUser.userId,
+      'TRANSACTIONS',
+      null,
+      'BULK_IMPORT_TRANSACTIONS',
+      null,
+      {
+        wallet_id: dto.wallet_id,
+        sent: ordered.length,
+        inserted: inserted.length,
+      },
+    );
+
+    return {
+      inserted: inserted.length,
+      skipped: ordered.length - inserted.length,
+    };
+  }
+
+  // Mengembalikan indeks item (sesuai urutan input) yang sudah pernah di-import
+  // ke wallet ini. Hash dihitung dengan urutan waktu yang sama seperti bulkCreate.
+  async checkDuplicates(
+    currentUser: AuthenticatedUser,
+    dto: CheckDuplicatesDto,
+  ): Promise<number[]> {
+    await this.walletsService.getById(currentUser, dto.wallet_id);
+
+    const indexed = dto.items
+      .map((item, index) => ({ item, index }))
+      .sort(
+        (a, b) =>
+          new Date(a.item.date).getTime() - new Date(b.item.date).getTime(),
+      );
+    const hashes = buildImportHashes(
+      dto.wallet_id,
+      indexed.map(({ item }) => item),
+    );
+    const existing = await this.transactionsRepository.FindExistingImportHashes(
+      dto.wallet_id,
+      hashes,
+    );
+
+    return indexed
+      .filter((_, position) => existing.has(hashes[position]))
+      .map(({ index }) => index)
+      .sort((a, b) => a - b);
   }
 
   async checkEncroachment(

@@ -232,6 +232,107 @@ describe('Transactions (feature)', () => {
     });
   });
 
+describe('POST /transactions/bulk and /transactions/check-duplicates', () => {
+    const items = (categoryId: string) => [
+      {
+        category_id: categoryId,
+        type: 'income',
+        amount: 8_000_000,
+        date: '2026-10-01T08:10:00+07:00',
+        note: 'GAJI OKTOBER',
+      },
+      {
+        category_id: categoryId,
+        type: 'expense',
+        amount: 35_000,
+        date: '2026-10-01T12:45:00+07:00',
+        note: 'QRIS WARUNG MAKAN',
+      },
+    ];
+
+    it('inserts the whole batch and updates the wallet balance', async () => {
+      const wallet = await createWallet(ctx, admin, { initial_balance: 0 });
+
+      const res = await authed(ctx, admin)
+        .post('/transactions/bulk')
+        .send({ wallet_id: wallet.id, items: items(category.id) });
+
+      expect(res.status).toBe(201);
+      expect(res.body.data).toEqual({ inserted: 2, skipped: 0 });
+      expect(await getWalletBalance(ctx, admin, wallet.id)).toBe(7_965_000);
+    });
+
+    it('skips duplicates when the same batch is imported again', async () => {
+      const wallet = await createWallet(ctx, admin, { initial_balance: 0 });
+      const body = { wallet_id: wallet.id, items: items(category.id) };
+
+      await authed(ctx, admin).post('/transactions/bulk').send(body);
+      const again = await authed(ctx, admin).post('/transactions/bulk').send(body);
+
+      expect(again.status).toBe(201);
+      expect(again.body.data).toEqual({ inserted: 0, skipped: 2 });
+      expect(await getWalletBalance(ctx, admin, wallet.id)).toBe(7_965_000);
+    });
+
+    it('keeps legitimate identical twins inside one batch', async () => {
+      const wallet = await createWallet(ctx, admin, { initial_balance: 0 });
+      const twin = {
+        category_id: category.id,
+        type: 'expense',
+        amount: 5_000,
+        date: '2026-10-02T09:00:00+07:00',
+        note: 'PARKIR',
+      };
+
+      const res = await authed(ctx, admin)
+        .post('/transactions/bulk')
+        .send({ wallet_id: wallet.id, items: [twin, twin] });
+
+      expect(res.body.data).toEqual({ inserted: 2, skipped: 0 });
+    });
+
+    it('reports which items already exist via check-duplicates', async () => {
+      const wallet = await createWallet(ctx, admin, { initial_balance: 0 });
+      const [first, second] = items(category.id);
+      await authed(ctx, admin)
+        .post('/transactions/bulk')
+        .send({ wallet_id: wallet.id, items: [first] });
+
+      const { category_id: _c1, ...firstItem } = first;
+      const { category_id: _c2, ...secondItem } = second;
+      const res = await authed(ctx, admin)
+        .post('/transactions/check-duplicates')
+        .send({ wallet_id: wallet.id, items: [secondItem, firstItem] });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data).toEqual({ duplicate_indexes: [1] });
+    });
+
+    it('rejects a batch with an invalid row without inserting anything', async () => {
+      const wallet = await createWallet(ctx, admin, { initial_balance: 0 });
+
+      const res = await authed(ctx, admin)
+        .post('/transactions/bulk')
+        .send({
+          wallet_id: wallet.id,
+          items: [...items(category.id), { ...items(category.id)[0], amount: 0 }],
+        });
+
+      expect(res.status).toBe(400);
+      expect(await getWalletBalance(ctx, admin, wallet.id)).toBe(0);
+    });
+
+    it('forbids importing into a wallet the user cannot access', async () => {
+      const wallet = await createWallet(ctx, admin, { initial_balance: 0 });
+
+      const res = await authed(ctx, outsider)
+        .post('/transactions/bulk')
+        .send({ wallet_id: wallet.id, items: items(category.id) });
+
+      expect(res.status).toBe(403);
+    });
+  });
+
   describe('GET /transactions', () => {
     it('lists transactions of accessible wallets only', async () => {
       const wallet = await createWallet(ctx, admin);

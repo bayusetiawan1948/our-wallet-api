@@ -11,6 +11,7 @@ import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { HouseholdsService } from '../households/households.service';
 import { ReservationsService } from '../reservations/reservations.service';
 import { WalletsService } from '../wallets/wallets.service';
+import { buildImportHashes } from './transaction-import-hash';
 import { TransactionsRepository } from './transactions.repository';
 import { TransactionsService } from './transactions.service';
 
@@ -64,6 +65,7 @@ describe('TransactionsService', () => {
     debtPaymentId: null,
     investmentTransactionId: null,
     correctionOfId: null,
+    importHash: null,
   };
 
   beforeEach(async () => {
@@ -73,6 +75,8 @@ describe('TransactionsService', () => {
       FindByWalletIds: jest.fn(),
       UpdateStatus: jest.fn(),
       FindCategoryHouseholdId: jest.fn(),
+      BulkCreateTransactions: jest.fn(),
+      FindExistingImportHashes: jest.fn(),
     };
     const walletsServiceMock: Partial<jest.Mocked<WalletsService>> = {
       getById: jest.fn(),
@@ -289,6 +293,116 @@ describe('TransactionsService', () => {
         'void',
       );
       expect(result.status).toBe('void');
+    });
+  });
+
+  describe('bulkCreate', () => {
+    const items = [
+      {
+        category_id: 'category-1',
+        type: 'expense' as const,
+        amount: 35000,
+        date: '2026-10-02T09:00:00+07:00',
+        note: 'Makan',
+      },
+      {
+        category_id: 'category-1',
+        type: 'income' as const,
+        amount: 8000000,
+        date: '2026-10-01T08:10:00+07:00',
+        note: 'Gaji',
+      },
+    ];
+
+    it('rejects when a category is outside the household', async () => {
+      walletsService.getById.mockResolvedValue(wallet);
+      repository.FindCategoryHouseholdId.mockResolvedValue('other-household');
+
+      await expect(
+        service.bulkCreate(admin, { wallet_id: 'wallet-1', items }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(repository.BulkCreateTransactions).not.toHaveBeenCalled();
+    });
+
+    it('inserts rows ordered by date and reports inserted and skipped counts', async () => {
+      walletsService.getById.mockResolvedValue(wallet);
+      repository.FindCategoryHouseholdId.mockResolvedValue('household-1');
+      repository.BulkCreateTransactions.mockResolvedValue([transaction]);
+
+      const result = await service.bulkCreate(admin, {
+        wallet_id: 'wallet-1',
+        items,
+      });
+
+      const rows = repository.BulkCreateTransactions.mock.calls[0][0];
+      expect(rows.map((r) => r.note)).toEqual(['Gaji', 'Makan']);
+      expect(rows.every((r) => typeof r.importHash === 'string')).toBe(true);
+      expect(rows.every((r) => r.recordedBy === 'user-1')).toBe(true);
+      expect(result).toEqual({ inserted: 1, skipped: 1 });
+    });
+
+    it('does not check wallet balance for imported expenses', async () => {
+      walletsService.getById.mockResolvedValue({ ...wallet, balance: 0 });
+      repository.FindCategoryHouseholdId.mockResolvedValue('household-1');
+      repository.BulkCreateTransactions.mockResolvedValue([transaction]);
+
+      await expect(
+        service.bulkCreate(admin, {
+          wallet_id: 'wallet-1',
+          items: [items[0]],
+        }),
+      ).resolves.toEqual({ inserted: 1, skipped: 0 });
+    });
+  });
+
+  describe('checkDuplicates', () => {
+    it('returns the input indexes whose hash already exists', async () => {
+      walletsService.getById.mockResolvedValue(wallet);
+      const items = [
+        { type: 'expense' as const, amount: 100, date: '2026-10-02T09:00:00Z' },
+        { type: 'expense' as const, amount: 200, date: '2026-10-01T09:00:00Z' },
+      ];
+      const [oldestHash] = buildImportHashes('wallet-1', [items[1]]);
+      repository.FindExistingImportHashes.mockResolvedValue(
+        new Set([oldestHash]),
+      );
+
+      const result = await service.checkDuplicates(admin, {
+        wallet_id: 'wallet-1',
+        items,
+      });
+
+      expect(result).toEqual([1]);
+    });
+  });
+
+  describe('buildImportHashes', () => {
+    const base = {
+      type: 'expense' as const,
+      amount: 5000,
+      date: '2026-10-02T09:00:00+07:00',
+      note: 'Parkir',
+    };
+
+    it('is deterministic and ignores note casing and spacing', () => {
+      const [a] = buildImportHashes('w1', [base]);
+      const [b] = buildImportHashes('w1', [{ ...base, note: '  parkir ' }]);
+
+      expect(a).toBe(b);
+    });
+
+    it('separates identical twins within a batch but stays stable across runs', () => {
+      const first = buildImportHashes('w1', [base, base]);
+      const second = buildImportHashes('w1', [base, base]);
+
+      expect(first[0]).not.toBe(first[1]);
+      expect(first).toEqual(second);
+    });
+
+    it('differs per wallet', () => {
+      expect(buildImportHashes('w1', [base])[0]).not.toBe(
+        buildImportHashes('w2', [base])[0],
+      );
     });
   });
 });

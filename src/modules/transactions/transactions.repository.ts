@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, gte, inArray, lte, SQL } from 'drizzle-orm';
+import { and, eq, gte, inArray, lte, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DATABASE } from '../../shared/database/database.provider';
 import {
@@ -29,6 +29,52 @@ export class TransactionsRepository {
     return created;
   }
 
+  // Menyimpan batch dalam satu transaksi database. Baris yang import_hash-nya
+  // sudah ada di wallet yang sama dilewati tanpa error; hasilnya hanya berisi
+  // baris yang benar-benar masuk.
+  async BulkCreateTransactions(rows: NewTransaction[]): Promise<Transaction[]> {
+    const CHUNK_SIZE = 500;
+
+    return this.db.transaction(async (tx) => {
+      const inserted: Transaction[] = [];
+
+      for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+        const chunk = await tx
+          .insert(transactions)
+          .values(rows.slice(i, i + CHUNK_SIZE))
+          .onConflictDoNothing({
+            target: [transactions.walletId, transactions.importHash],
+          })
+          .returning();
+
+        inserted.push(...chunk);
+      }
+
+      return inserted;
+    });
+  }
+
+  async FindExistingImportHashes(
+    walletId: string,
+    hashes: string[],
+  ): Promise<Set<string>> {
+    if (hashes.length === 0) {
+      return new Set();
+    }
+
+    const found = await this.db
+      .select({ importHash: transactions.importHash })
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.walletId, walletId),
+          inArray(transactions.importHash, hashes),
+        ),
+      );
+
+    return new Set(found.map((row) => row.importHash as string));
+  }
+
   async FindById(id: string): Promise<Transaction | undefined> {
     const [found] = await this.db
       .select()
@@ -56,11 +102,15 @@ export class TransactionsRepository {
     }
 
     if (filter.from) {
-      clauses.push(gte(transactions.date, filter.from));
+      clauses.push(
+        gte(sql`(${transactions.date} AT TIME ZONE 'Asia/Jakarta')::date`, filter.from),
+      );
     }
 
     if (filter.to) {
-      clauses.push(lte(transactions.date, filter.to));
+      clauses.push(
+        lte(sql`(${transactions.date} AT TIME ZONE 'Asia/Jakarta')::date`, filter.to),
+      );
     }
 
     return this.db

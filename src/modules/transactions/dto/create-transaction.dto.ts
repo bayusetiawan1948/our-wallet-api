@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
   IsArray,
   IsIn,
+  IsISO8601,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -52,7 +53,13 @@ export class CreateTransactionDto {
   amount!: number;
 
   @IsNotEmpty({ message: 'date is required' })
-  @IsString({ message: 'date must be a string (YYYY-MM-DD)' })
+  @IsISO8601(
+    { strict: true },
+    {
+      message:
+        'date must be an ISO 8601 datetime (e.g. 2026-10-29T14:30:00+07:00)',
+    },
+  )
   date!: string;
 
   @IsOptional()
