@@ -353,6 +353,13 @@ describe('Wallets (feature)', () => {
         recorded_balance: 300_000,
         actual_balance: 250_000,
       });
+      expect(res.body.data.adjustment_transaction_id).toEqual(
+        expect.any(String),
+      );
+
+      const detail = await authed(ctx, admin).get(`/wallets/${wallet.id}`);
+
+      expect(detail.body.data.balance).toBe(250_000);
 
       const list = await authed(ctx, member).get(
         `/wallets/${wallet.id}/reconciliations`,
@@ -360,6 +367,18 @@ describe('Wallets (feature)', () => {
 
       expect(list.status).toBe(200);
       expect(list.body.data).toHaveLength(1);
+    });
+
+    it('skips the adjustment transaction when balances already match', async () => {
+      const wallet = await createWallet(ctx, admin, {
+        initial_balance: 100_000,
+      });
+      const res = await authed(ctx, admin)
+        .post(`/wallets/${wallet.id}/reconciliations`)
+        .send({ actual_balance: 100_000 });
+
+      expect(res.status).toBe(201);
+      expect(res.body.data.adjustment_transaction_id).toBeNull();
     });
 
     it('rejects a non-numeric actual_balance with 400', async () => {

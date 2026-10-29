@@ -162,9 +162,7 @@ export class DebtsService {
   ): Promise<Debt> {
     const debt = await this.assertAccess(currentUser, debtId);
 
-    if (debt.status === 'cancelled') {
-      throw new ConflictException('Debt is already cancelled');
-    }
+    this.assertMutable(debt);
 
     if (dto.status === 'cancelled') {
       return this.cancel(currentUser, debt);
@@ -296,9 +294,7 @@ export class DebtsService {
   async remove(currentUser: AuthenticatedUser, debtId: string): Promise<void> {
     const debt = await this.assertAccess(currentUser, debtId);
 
-    if (debt.status === 'cancelled') {
-      throw new ConflictException('Debt is already cancelled');
-    }
+    this.assertMutable(debt);
 
     const hasPayments = await this.debtsRepository.HasActivePayments(debt.id);
 
@@ -505,6 +501,16 @@ export class DebtsService {
     );
 
     return cancelled;
+  }
+
+  private assertMutable(debt: Debt): void {
+    if (debt.status === 'cancelled') {
+      throw new ConflictException('Debt is already cancelled');
+    }
+
+    if (debt.status === 'paid') {
+      throw new ConflictException('Debt is already paid and cannot be changed');
+    }
   }
 
   private buildEntry(

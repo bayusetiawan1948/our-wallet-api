@@ -227,13 +227,28 @@ export class WalletsService {
     const recordedBalance = await this.walletsRepository.ComputeBalance(
       wallet.id,
     );
+    // Dibulatkan ke 2 desimal sesuai presisi kolom amount.
+    const difference =
+      Math.round((actualBalance - recordedBalance) * 100) / 100;
 
-    return this.walletsRepository.CreateReconciliation({
-      walletId: wallet.id,
-      recordedBalance: recordedBalance.toString(),
-      actualBalance: actualBalance.toString(),
-      date: new Date().toISOString().split('T')[0],
-    });
+    if (difference !== 0 && !currentUser.householdId) {
+      throw new ForbiddenException('You do not belong to a household yet');
+    }
+
+    return this.walletsRepository.CreateReconciliation(
+      {
+        walletId: wallet.id,
+        recordedBalance: recordedBalance.toString(),
+        actualBalance: actualBalance.toString(),
+        date: new Date().toISOString().split('T')[0],
+      },
+      {
+        householdId: currentUser.householdId as string,
+        ownerId: wallet.ownerUserId ?? currentUser.userId,
+        recordedBy: currentUser.userId,
+        difference,
+      },
+    );
   }
 
   async listReconciliations(

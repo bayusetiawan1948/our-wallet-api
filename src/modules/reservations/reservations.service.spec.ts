@@ -44,14 +44,16 @@ describe('ReservationsService', () => {
       FindBudgetOwner: jest.fn().mockResolvedValue({
         ownerUserId: null,
         ownerHouseholdId: 'household-1',
+        targetAmount: '1000000',
       }),
       FindGoalOwner: jest.fn().mockResolvedValue({
         ownerUserId: null,
         ownerHouseholdId: 'household-1',
+        targetAmount: '1000000',
       }),
       ListByWallet: jest.fn(),
-      ListByBudget: jest.fn(),
-      ListByGoal: jest.fn(),
+      ListByBudget: jest.fn().mockResolvedValue([]),
+      ListByGoal: jest.fn().mockResolvedValue([]),
       ListByWallets: jest.fn(),
       UpdateReservedAmount: jest.fn(),
       Delete: jest.fn(),
@@ -124,6 +126,7 @@ describe('ReservationsService', () => {
       repository.FindGoalOwner.mockResolvedValue({
         ownerUserId: null,
         ownerHouseholdId: 'household-2',
+        targetAmount: '1000000',
       });
 
       await expect(
@@ -148,6 +151,33 @@ describe('ReservationsService', () => {
           reserved_amount: 1000,
         }),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('create target limit', () => {
+    it('rejects a reservation that pushes the total above the budget target', async () => {
+      walletsService.getById.mockResolvedValue({
+        id: 'wallet-1',
+        ownerUserId: 'user-1',
+        ownerHouseholdId: null,
+        name: 'BCA',
+        type: 'bank',
+        currency: 'IDR',
+        balance: 5000000,
+      });
+      repository.ListByBudget.mockResolvedValue([
+        { ...reservation, reservedAmount: '900000' },
+      ]);
+
+      await expect(
+        service.create(admin, {
+          wallet_id: 'wallet-1',
+          budget_id: 'budget-1',
+          reserved_amount: 200000,
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(repository.Create).not.toHaveBeenCalled();
     });
   });
 

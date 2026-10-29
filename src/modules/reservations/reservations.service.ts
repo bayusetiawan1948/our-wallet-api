@@ -40,6 +40,12 @@ export class ReservationsService {
       );
 
       this.assertCanTarget(currentUser, owner, 'Budget');
+      await this.assertWithinTarget(
+        await this.reservationsRepository.ListByBudget(dto.budget_id),
+        dto.reserved_amount,
+        Number(owner!.targetAmount),
+        'budget',
+      );
     }
 
     if (dto.goal_id) {
@@ -48,6 +54,12 @@ export class ReservationsService {
       );
 
       this.assertCanTarget(currentUser, owner, 'Goal');
+      await this.assertWithinTarget(
+        await this.reservationsRepository.ListByGoal(dto.goal_id),
+        dto.reserved_amount,
+        Number(owner!.targetAmount),
+        'goal',
+      );
     }
 
     return this.reservationsRepository.Create({
@@ -198,6 +210,24 @@ export class ReservationsService {
     }
 
     return reservation;
+  }
+
+  private assertWithinTarget(
+    existing: Reservation[],
+    amount: number,
+    target: number,
+    label: 'budget' | 'goal',
+  ): void {
+    const reserved = existing.reduce(
+      (sum, r) => sum + Number(r.reservedAmount),
+      0,
+    );
+
+    if (reserved + amount > target) {
+      throw new BadRequestException(
+        `Total reservations (${reserved + amount}) cannot exceed the ${label} target (${target})`,
+      );
+    }
   }
 
   private assertCanTarget(

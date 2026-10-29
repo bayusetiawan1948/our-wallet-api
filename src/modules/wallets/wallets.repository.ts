@@ -269,13 +269,71 @@ export class WalletsRepository {
 
   async CreateReconciliation(
     data: NewWalletReconciliation,
+    adjustment?: {
+      householdId: string;
+      ownerId: string;
+      recordedBy: string;
+      difference: number;
+    },
   ): Promise<WalletReconciliation> {
-    const [created] = await this.db
-      .insert(walletReconciliations)
-      .values(data)
-      .returning();
+    return this.db.transaction(async (tx) => {
+      let adjustmentTransactionId: string | null = null;
 
-    return created;
+      // Selisih saldo dicatat sebagai transaksi berkategori sistem "Rekonsiliasi"
+      // agar ComputeBalance menghasilkan saldo aktual.
+      if (adjustment && adjustment.difference !== 0) {
+        const [existing] = await tx
+          .select({ id: categories.id })
+          .from(categories)
+          .where(
+            and(
+              eq(categories.householdId, adjustment.householdId),
+              eq(categories.name, 'Rekonsiliasi'),
+              eq(categories.isSystem, true),
+            ),
+          )
+          .limit(1);
+
+        const categoryId =
+          existing?.id ??
+          (
+            await tx
+              .insert(categories)
+              .values({
+                householdId: adjustment.householdId,
+                name: 'Rekonsiliasi',
+                type: 'both',
+                isSystem: true,
+                isHidden: true,
+              })
+              .returning({ id: categories.id })
+          )[0].id;
+
+        const [adjustmentTx] = await tx
+          .insert(transactions)
+          .values({
+            walletId: data.walletId,
+            categoryId,
+            ownerId: adjustment.ownerId,
+            recordedBy: adjustment.recordedBy,
+            type: adjustment.difference > 0 ? 'income' : 'expense',
+            amount: Math.abs(adjustment.difference).toString(),
+            date: new Date().toISOString(),
+            note: 'Penyesuaian rekonsiliasi',
+            status: 'active',
+          })
+          .returning({ id: transactions.id });
+
+        adjustmentTransactionId = adjustmentTx.id;
+      }
+
+      const [created] = await tx
+        .insert(walletReconciliations)
+        .values({ ...data, adjustmentTransactionId })
+        .returning();
+
+      return created;
+    });
   }
 
   async ListReconciliationsByWallet(

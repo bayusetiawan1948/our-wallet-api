@@ -150,6 +150,42 @@ describe('WalletsService', () => {
     });
   });
 
+  describe('createReconciliation', () => {
+    it('passes the balance difference as an adjustment', async () => {
+      repository.FindById.mockResolvedValue(wallet);
+      repository.ComputeBalance.mockResolvedValue(300000);
+
+      await service.createReconciliation(admin, wallet.id, 250000);
+
+      expect(repository.CreateReconciliation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          walletId: wallet.id,
+          recordedBalance: '300000',
+          actualBalance: '250000',
+        }),
+        {
+          householdId: 'household-1',
+          ownerId: 'user-1',
+          recordedBy: 'user-1',
+          difference: -50000,
+        },
+      );
+    });
+
+    it('throws ForbiddenException when adjusting without a household', async () => {
+      repository.FindById.mockResolvedValue(wallet);
+      repository.ComputeBalance.mockResolvedValue(100);
+
+      await expect(
+        service.createReconciliation(
+          { ...admin, householdId: null },
+          wallet.id,
+          200,
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+  });
+
   describe('grantAccess', () => {
     it('throws ConflictException when user already has access', async () => {
       repository.FindById.mockResolvedValue(wallet);

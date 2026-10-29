@@ -13,6 +13,7 @@ import {
 export interface ReservationTargetOwner {
   ownerUserId: string | null;
   ownerHouseholdId: string | null;
+  targetAmount: string;
 }
 
 @Injectable()
@@ -35,6 +36,7 @@ export class ReservationsRepository {
       .select({
         ownerUserId: budgets.ownerUserId,
         ownerHouseholdId: budgets.ownerHouseholdId,
+        targetAmount: budgets.targetAmount,
       })
       .from(budgets)
       .where(eq(budgets.id, budgetId))
@@ -50,6 +52,7 @@ export class ReservationsRepository {
       .select({
         ownerUserId: goals.ownerUserId,
         ownerHouseholdId: goals.ownerHouseholdId,
+        targetAmount: goals.targetAmount,
       })
       .from(goals)
       .where(eq(goals.id, goalId))
