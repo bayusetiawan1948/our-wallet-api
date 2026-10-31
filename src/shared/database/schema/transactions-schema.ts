@@ -45,7 +45,9 @@ export const transactions = pgTable(
     // Terisi hanya untuk entri yang dihasilkan otomatis oleh utang/piutang atau
     // investasi. Entri ini hanya boleh dibatalkan lewat menu asalnya.
     source: transactionSourceEnum('source'),
-    debtId: uuid('debt_id').references(() => debts.id, { onDelete: 'set null' }),
+    debtId: uuid('debt_id').references(() => debts.id, {
+      onDelete: 'set null',
+    }),
     debtPaymentId: uuid('debt_payment_id').references(() => debtPayments.id, {
       onDelete: 'set null',
     }),

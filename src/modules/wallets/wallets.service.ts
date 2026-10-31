@@ -100,6 +100,15 @@ export class WalletsService {
     );
   }
 
+  async listAccessibleIds(currentUser: AuthenticatedUser): Promise<string[]> {
+    const wallets = await this.walletsRepository.FindAccessibleWallets(
+      currentUser.userId,
+      currentUser.householdId,
+    );
+
+    return wallets.map((wallet) => wallet.id);
+  }
+
   async getById(
     currentUser: AuthenticatedUser,
     walletId: string,

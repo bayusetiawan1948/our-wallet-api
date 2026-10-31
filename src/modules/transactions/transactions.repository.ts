@@ -103,13 +103,19 @@ export class TransactionsRepository {
 
     if (filter.from) {
       clauses.push(
-        gte(sql`(${transactions.date} AT TIME ZONE 'Asia/Jakarta')::date`, filter.from),
+        gte(
+          sql`(${transactions.date} AT TIME ZONE 'Asia/Jakarta')::date`,
+          filter.from,
+        ),
       );
     }
 
     if (filter.to) {
       clauses.push(
-        lte(sql`(${transactions.date} AT TIME ZONE 'Asia/Jakarta')::date`, filter.to),
+        lte(
+          sql`(${transactions.date} AT TIME ZONE 'Asia/Jakarta')::date`,
+          filter.to,
+        ),
       );
     }
 

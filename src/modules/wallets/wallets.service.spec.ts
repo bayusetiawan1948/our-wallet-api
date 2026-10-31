@@ -102,6 +102,20 @@ describe('WalletsService', () => {
     });
   });
 
+  describe('listAccessibleIds', () => {
+    it('returns accessible wallet ids without computing balances', async () => {
+      repository.FindAccessibleWallets.mockResolvedValue([
+        wallet,
+        { ...wallet, id: 'wallet-2' },
+      ]);
+
+      const result = await service.listAccessibleIds(admin);
+
+      expect(result).toEqual(['wallet-1', 'wallet-2']);
+      expect(repository.ComputeBalance).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getById / assertCanAccess', () => {
     it('throws NotFoundException when wallet does not exist', async () => {
       repository.FindById.mockResolvedValue(undefined);

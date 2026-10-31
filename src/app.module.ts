@@ -12,6 +12,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { BudgetsModule } from './modules/budgets/budgets.module';
 import { CategoriesModule } from './modules/categories/categories.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { DebtsModule } from './modules/debts/debts.module';
 import { GoalsModule } from './modules/goals/goals.module';
 import { HouseholdsModule } from './modules/households/households.module';
@@ -38,6 +39,7 @@ import { WalletsModule } from './modules/wallets/wallets.module';
     ReservationsModule,
     BudgetsModule,
     GoalsModule,
+    DashboardModule,
     AuditLogsModule,
   ],
   providers: [

@@ -232,7 +232,7 @@ describe('Transactions (feature)', () => {
     });
   });
 
-describe('POST /transactions/bulk and /transactions/check-duplicates', () => {
+  describe('POST /transactions/bulk and /transactions/check-duplicates', () => {
     const items = (categoryId: string) => [
       {
         category_id: categoryId,
@@ -267,7 +267,9 @@ describe('POST /transactions/bulk and /transactions/check-duplicates', () => {
       const body = { wallet_id: wallet.id, items: items(category.id) };
 
       await authed(ctx, admin).post('/transactions/bulk').send(body);
-      const again = await authed(ctx, admin).post('/transactions/bulk').send(body);
+      const again = await authed(ctx, admin)
+        .post('/transactions/bulk')
+        .send(body);
 
       expect(again.status).toBe(201);
       expect(again.body.data).toEqual({ inserted: 0, skipped: 2 });
@@ -315,7 +317,10 @@ describe('POST /transactions/bulk and /transactions/check-duplicates', () => {
         .post('/transactions/bulk')
         .send({
           wallet_id: wallet.id,
-          items: [...items(category.id), { ...items(category.id)[0], amount: 0 }],
+          items: [
+            ...items(category.id),
+            { ...items(category.id)[0], amount: 0 },
+          ],
         });
 
       expect(res.status).toBe(400);

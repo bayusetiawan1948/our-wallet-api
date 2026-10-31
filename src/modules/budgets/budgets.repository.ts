@@ -133,8 +133,14 @@ export class BudgetsRepository {
           eq(transactions.status, 'active'),
           // Pergerakan dana utang/piutang bukan pengeluaran anggaran.
           isNull(transactions.source),
-          gte(sql`(${transactions.date} AT TIME ZONE 'Asia/Jakarta')::date`, from),
-          lte(sql`(${transactions.date} AT TIME ZONE 'Asia/Jakarta')::date`, to),
+          gte(
+            sql`(${transactions.date} AT TIME ZONE 'Asia/Jakarta')::date`,
+            from,
+          ),
+          lte(
+            sql`(${transactions.date} AT TIME ZONE 'Asia/Jakarta')::date`,
+            to,
+          ),
         ),
       );
 
